@@ -1,0 +1,8 @@
+digraph Papers {
+  rankdir=LR;
+  node [shape=box, style=rounded];
+  "1" [label="Dynamic feedback loops in recommender systems: Analyzing fairness, popularity bias, and user group disparities (pid:s10844-026-01025-y, 2026)"];
+  "2" [label="Wise recommender: LLMs refined by iterative critics (2026)"];
+  "1" -> "2" [label="shared-keyword"];
+  "2" -> "1" [label="shared-keyword"];
+}

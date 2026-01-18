@@ -8,9 +8,10 @@ import shutil
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Dict, List, Sequence
+from typing import Dict, List, Sequence, Set
 
-DEFAULT_DB = Path(__file__).parent / "library" / "papers.db"
+DEFAULT_DB = Path(__file__).parent / "library" / "db" / "papers.db"
+DEFAULT_GRAPH_DIR = Path(__file__).parent / "library" / "graph"
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
@@ -35,6 +36,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             id TEXT PRIMARY KEY,
             name TEXT,
             description TEXT,
+            bib_text_path TEXT,
             created_at TEXT DEFAULT (datetime('now'))
         );
 
@@ -105,6 +107,13 @@ def init_db(conn: sqlite3.Connection) -> None:
             "bibtex": "TEXT",
             "file_path": "TEXT",
             "fulltext": "TEXT",
+        },
+    )
+    ensure_columns(
+        conn,
+        "projects",
+        {
+            "bib_text_path": "TEXT",
         },
     )
     conn.execute(
@@ -410,18 +419,24 @@ def cmd_link(args: argparse.Namespace) -> None:
         )
 
 
-def rows_to_graph(conn: sqlite3.Connection) -> Dict[str, List[Dict[str, object]]]:
+def rows_to_graph(
+    conn: sqlite3.Connection, project_id: str | None = None
+) -> Dict[str, List[Dict[str, object]]]:
     papers = conn.execute(
         """
         SELECT id, paper_id, project_id, title, abstract, keywords, year, venue, authors, doi, url, tags, relevance,
                dataset_used, methods, metrics, limitations, future_work, summary, extra, bibtex, file_path
-        FROM papers ORDER BY id
-        """
+        FROM papers
+        WHERE (:project_id IS NULL OR project_id = :project_id)
+        ORDER BY id
+        """,
+        {"project_id": project_id},
     ).fetchall()
-
     links = conn.execute(
         "SELECT source_id, target_id, relation_type, note FROM relationships"
     ).fetchall()
+
+    node_ids: Set[int] = {int(p["id"]) for p in papers}
 
     nodes = []
     for p in papers:
@@ -445,11 +460,9 @@ def rows_to_graph(conn: sqlite3.Connection) -> Dict[str, List[Dict[str, object]]
                 "dataset_used": p["dataset_used"],
                 "methods": p["methods"],
                 "metrics": p["metrics"],
-                "gap": p["gap"],
                 "limitations": p["limitations"],
                 "future_work": p["future_work"],
                 "summary": p["summary"],
-                "notes": p["notes"],
                 "extra": p["extra"],
                 "bibtex": p["bibtex"],
                 "file_path": p["file_path"],
@@ -458,6 +471,8 @@ def rows_to_graph(conn: sqlite3.Connection) -> Dict[str, List[Dict[str, object]]
 
     edges = []
     for l in links:
+        if project_id and (l["source_id"] not in node_ids or l["target_id"] not in node_ids):
+            continue
         edges.append(
             {
                 "source": l["source_id"],
@@ -468,6 +483,7 @@ def rows_to_graph(conn: sqlite3.Connection) -> Dict[str, List[Dict[str, object]]
         )
 
     return {"nodes": nodes, "links": edges}
+
 
 
 def write_json_graph(data: Dict[str, List[Dict[str, object]]], path: Path) -> None:
@@ -515,14 +531,21 @@ def cmd_export(args: argparse.Namespace) -> None:
     db_path = Path(args.db)
     conn = connect(db_path)
     init_db(conn)
-    data = rows_to_graph(conn)
+    data = rows_to_graph(conn, project_id=args.project_id)
 
-    if args.json_out:
-        write_json_graph(data, Path(args.json_out))
-        print(f"Wrote graph JSON to {args.json_out}")
-    if args.dot_out:
-        write_dot_graph(data, Path(args.dot_out))
-        print(f"Wrote Graphviz DOT to {args.dot_out}")
+    json_path = Path(args.json_out)
+    dot_path = Path(args.dot_out) if args.dot_out else None
+
+    if args.project_id and json_path.name == "graph.json":
+        json_path = json_path.with_name(f"{args.project_id}.json")
+    if args.project_id and dot_path and dot_path.name == "graph.dot":
+        dot_path = dot_path.with_name(f"{args.project_id}.dot")
+
+    write_json_graph(data, json_path)
+    print(f"Wrote graph JSON to {json_path}")
+    if dot_path:
+        write_dot_graph(data, dot_path)
+        print(f"Wrote Graphviz DOT to {dot_path}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -645,14 +668,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     export_p = subparsers.add_parser("export", help="Export graph data")
     export_p.add_argument(
+        "--project-id",
+        help="Filter graph to a specific project and name outputs accordingly",
+    )
+    export_p.add_argument(
         "--json-out",
-        default=str(DEFAULT_DB.parent / "graph.json"),
-        help="Path to write nodes/links JSON",
+        default=str(DEFAULT_GRAPH_DIR / "graph.json"),
+        help="Path to write nodes/links JSON (defaults to <project_id>.json when --project-id is set)",
     )
     export_p.add_argument(
         "--dot-out",
-        default=str(DEFAULT_DB.parent / "graph.dot"),
-        help="Path to write Graphviz DOT file",
+        default=str(DEFAULT_GRAPH_DIR / "graph.dot"),
+        help="Path to write Graphviz DOT file (defaults to <project_id>.dot when --project-id is set)",
     )
     export_p.set_defaults(func=cmd_export)
 

@@ -28,12 +28,12 @@ async function getSql() {
   return sqlInstance
 }
 
-export function usePaperData(dbPath: string) {
+export function usePaperData(dbPath: string, projectId?: string) {
   const [papers, setPapers] = useState<PaperRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const loadPapers = useCallback(async (path: string) => {
+  const loadPapers = useCallback(async (path: string, pid?: string) => {
     setLoading(true)
     setError(null)
     try {
@@ -43,11 +43,20 @@ export function usePaperData(dbPath: string) {
       const buffer = await response.arrayBuffer()
       const db = new SQL.Database(new Uint8Array(buffer))
       
-      const result = db.exec(`
+      let query = `
         SELECT id, paper_id, title, authors, year, venue, doi, tags, relevance, dataset_used, methods
         FROM papers
-        ORDER BY added_at DESC, id DESC
-      `)
+      `
+      
+      // If projectId is provided, filter by it.
+      // Note: This assumes the 'papers' table has a 'project_id' column, which we verified.
+      if (pid) {
+        query += ` WHERE project_id = '${pid}'`
+      }
+
+      query += ` ORDER BY added_at DESC, id DESC`
+
+      const result = db.exec(query)
       
       if (result.length > 0) {
         const columns = result[0].columns
@@ -73,12 +82,12 @@ export function usePaperData(dbPath: string) {
   }, [])
 
   useEffect(() => {
-    loadPapers(dbPath)
-  }, [dbPath, loadPapers])
+    loadPapers(dbPath, projectId)
+  }, [dbPath, projectId, loadPapers])
 
   const deletePaper = useCallback((id: number) => {
     setPapers((prev) => prev.filter((p) => p.id !== id))
   }, [])
 
-  return { papers, loading, error, reload: () => loadPapers(dbPath), deletePaper }
+  return { papers, loading, error, reload: () => loadPapers(dbPath, projectId), deletePaper }
 }
