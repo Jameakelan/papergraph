@@ -47,9 +47,11 @@ def init_db(conn: sqlite3.Connection) -> None:
             dataset_used TEXT,
             methods TEXT,
             metrics TEXT,
+            gap TEXT,
             limitations TEXT,
             future_work TEXT,
             summary TEXT,
+            notes TEXT,
             extra TEXT,
             bibtex TEXT,
             added_at TEXT DEFAULT (datetime('now'))
@@ -84,8 +86,11 @@ def init_db(conn: sqlite3.Connection) -> None:
             "dataset_used": "TEXT",
             "methods": "TEXT",
             "metrics": "TEXT",
+            "gap": "TEXT",
             "limitations": "TEXT",
             "future_work": "TEXT",
+            "summary": "TEXT",
+            "notes": "TEXT",
             "extra": "TEXT",
             "bibtex": "TEXT",
             "file_path": "TEXT",
@@ -212,10 +217,10 @@ def insert_paper(
         """
         INSERT INTO papers (
             paper_id, title, abstract, keywords, year, venue, authors, doi, url, tags,
-            relevance, dataset_used, methods, metrics, limitations, future_work, summary, extra,
+            relevance, dataset_used, methods, metrics, gap, limitations, future_work, summary, notes, extra,
             bibtex, file_path, fulltext
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             args.paper_id,
@@ -232,9 +237,11 @@ def insert_paper(
             args.dataset_used,
             args.methods,
             args.metrics,
+            args.gap,
             args.limitations,
             args.future_work,
             args.summary,
+            args.notes,
             args.extra,
             args.bibtex,
             file_path,
@@ -391,7 +398,7 @@ def rows_to_graph(conn: sqlite3.Connection) -> Dict[str, List[Dict[str, object]]
     papers = conn.execute(
         """
         SELECT id, paper_id, title, abstract, keywords, year, venue, authors, doi, url, tags, relevance,
-               dataset_used, methods, metrics, limitations, future_work, summary, extra, bibtex, file_path
+               dataset_used, methods, metrics, gap, limitations, future_work, summary, notes, extra, bibtex, file_path
         FROM papers ORDER BY id
         """
     ).fetchall()
@@ -420,9 +427,11 @@ def rows_to_graph(conn: sqlite3.Connection) -> Dict[str, List[Dict[str, object]]
                 "dataset_used": p["dataset_used"],
                 "methods": p["methods"],
                 "metrics": p["metrics"],
+                "gap": p["gap"],
                 "limitations": p["limitations"],
                 "future_work": p["future_work"],
                 "summary": p["summary"],
+                "notes": p["notes"],
                 "extra": p["extra"],
                 "bibtex": p["bibtex"],
                 "file_path": p["file_path"],
@@ -523,6 +532,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_p.add_argument("--dataset-used", dest="dataset_used", help="Datasets used")
     add_p.add_argument("--methods", help="Methods or models used")
     add_p.add_argument("--metrics", help="Evaluation metrics")
+    add_p.add_argument("--gap", help="Identified research or method gap")
     add_p.add_argument("--limitations", help="Known limitations")
     add_p.add_argument("--future-work", dest="future_work", help="Future work directions")
     add_p.add_argument(
@@ -533,6 +543,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_p.add_argument("--file-path", dest="file_path", help="Path to stored PDF")
     add_p.add_argument("--fulltext", help="Full extracted text content")
     add_p.add_argument("--summary", help="Short notes or summary")
+    add_p.add_argument("--notes", help="Personal notes or comments")
     add_p.add_argument("--extra", help="JSON or text for additional fields")
     add_p.add_argument("--bibtex", help="BibTeX entry text")
     add_p.add_argument(
@@ -560,6 +571,7 @@ def build_parser() -> argparse.ArgumentParser:
     import_p.add_argument("--dataset-used", dest="dataset_used", help="Datasets used")
     import_p.add_argument("--methods", help="Methods or models used")
     import_p.add_argument("--metrics", help="Evaluation metrics")
+    import_p.add_argument("--gap", help="Identified research or method gap")
     import_p.add_argument("--limitations", help="Known limitations")
     import_p.add_argument("--future-work", dest="future_work", help="Future work directions")
     import_p.add_argument(
@@ -568,6 +580,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Subjective relevance rating",
     )
     import_p.add_argument("--summary", help="Short notes or summary")
+    import_p.add_argument("--notes", help="Personal notes or comments")
     import_p.add_argument("--extra", help="JSON or text for additional fields")
     import_p.add_argument("--bibtex", help="BibTeX entry text")
     import_p.add_argument("--fulltext", help="Override extracted full text")

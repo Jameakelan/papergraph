@@ -15,20 +15,22 @@ Open the dev server URL from the terminal output (defaults to `http://localhost:
 ## Providing data
 
 ### Graph JSON
-1) Export the latest graph from the SQLite database:
+- The dev server and production build now automatically serve `../library/graph.json` as `/graph.json` if it exists at build/run time.
+- To update the data, export again:
 ```bash
 python ../paper_db.py export --json-out ../library/graph.json
 ```
-2) Copy or link that file so the UI can read it (default path: `public/graph.json`):
+- You can still manually copy if you prefer:
 ```bash
 cp ../library/graph.json ./public/graph.json
 ```
-   Alternatively, enter a different path/URL in the "Graph JSON path" input at the top of the UI.
+- The UI defaults to `/graph.json`, but you can point the "Graph JSON path" input to any reachable URL.
 
 A small sample dataset is preloaded in `public/graph.json` to preview the interface.
 
 ### Paper list (SQLite)
-- Copy the database so the browser can read it:
+- The dev server and production build now automatically serve `../library/papers.db` as `/papers.db` if it exists at build/run time.
+- If you prefer a copy, you can still do:
 ```bash
 cp ../library/papers.db ./public/papers.db
 ```
