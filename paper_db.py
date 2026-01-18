@@ -262,35 +262,6 @@ def insert_paper(
             fulltext,
         ),
     )
-
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            args.paper_id,
-            args.title,
-            args.abstract,
-            ", ".join(keywords) if keywords else None,
-            args.year,
-            args.venue,
-            args.authors,
-            args.doi,
-            args.url,
-            ", ".join(tags) if tags else None,
-            args.relevance,
-            args.dataset_used,
-            args.methods,
-            args.metrics,
-            args.gap,
-            args.limitations,
-            args.future_work,
-            args.summary,
-            args.notes,
-            args.extra,
-            args.bibtex,
-            file_path,
-            fulltext,
-        ),
-    )
     conn.commit()
     paper_id = cur.lastrowid
     print(f"Added paper #{paper_id}: {args.title}")
@@ -365,7 +336,7 @@ def cmd_list(args: argparse.Namespace) -> None:
         clauses.append("keywords LIKE ?")
         params.append(f"%{args.keyword}%")
 
-    sql = "SELECT id, paper_id, title, year, venue, doi, keywords, tags, relevance, dataset_used, methods, file_path, bibtex FROM papers"
+    sql = "SELECT id, paper_id, project_id, title, year, venue, doi, keywords, tags, relevance, dataset_used, methods, file_path, bibtex FROM papers"
     if clauses:
         sql += " WHERE " + " AND ".join(clauses)
     sql += " ORDER BY added_at DESC"
@@ -392,6 +363,8 @@ def cmd_list(args: argparse.Namespace) -> None:
         print(f"[{row['id']}] {row['title']}" + (f" ({detail_str})" if detail_str else ""))
         if row["paper_id"]:
             print(f"     paper_id: {row['paper_id']}")
+        if row["project_id"]:
+            print(f"     project_id: {row['project_id']}")
         if row["doi"]:
             print(f"     DOI: {row['doi']}")
         if keyword_str:
@@ -440,11 +413,12 @@ def cmd_link(args: argparse.Namespace) -> None:
 def rows_to_graph(conn: sqlite3.Connection) -> Dict[str, List[Dict[str, object]]]:
     papers = conn.execute(
         """
-        SELECT id, paper_id, title, abstract, keywords, year, venue, authors, doi, url, tags, relevance,
-               dataset_used, methods, metrics, gap, limitations, future_work, summary, notes, extra, bibtex, file_path
+        SELECT id, paper_id, project_id, title, abstract, keywords, year, venue, authors, doi, url, tags, relevance,
+               dataset_used, methods, metrics, limitations, future_work, summary, extra, bibtex, file_path
         FROM papers ORDER BY id
         """
     ).fetchall()
+
     links = conn.execute(
         "SELECT source_id, target_id, relation_type, note FROM relationships"
     ).fetchall()
@@ -457,6 +431,7 @@ def rows_to_graph(conn: sqlite3.Connection) -> Dict[str, List[Dict[str, object]]
             {
                 "id": p["id"],
                 "paper_id": p["paper_id"],
+                "project_id": p["project_id"],
                 "title": p["title"],
                 "abstract": p["abstract"],
                 "keywords": keywords,
@@ -510,6 +485,8 @@ def to_dot(data: Dict[str, List[Dict[str, object]]]) -> str:
         details = []
         if node.get("paper_id"):
             details.append(f"pid:{node['paper_id']}")
+        if node.get("project_id"):
+            details.append(f"proj:{node['project_id']}")
         if node.get("year"):
             details.append(str(node["year"]))
         if node.get("venue"):
