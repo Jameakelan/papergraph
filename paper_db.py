@@ -605,6 +605,7 @@ def build_parser() -> argparse.ArgumentParser:
     import_p = subparsers.add_parser("import-pdf", help="Extract metadata and add from a PDF")
     import_p.add_argument("--path", required=True, help="Path to PDF file")
     import_p.add_argument("--paper-id", dest="paper_id", help="Custom paper identifier")
+    import_p.add_argument("--project-id", dest="project_id", help="Project UUID to link")
     import_p.add_argument("--title", help="Paper title override")
     import_p.add_argument("--abstract", help="Paper abstract or notes")
     import_p.add_argument("--authors", help="Author list")
