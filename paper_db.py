@@ -142,6 +142,19 @@ def normalize_tags(raw_tags: Sequence[str] | None) -> List[str]:
     return unique
 
 
+def split_authors(authors: str | None) -> List[str]:
+    if not authors:
+        return []
+    cleaned = authors.replace(" and ", ",")
+    return [part.strip() for part in cleaned.split(",") if part.strip()]
+
+
+def has_overlap(a: List[str], b: List[str]) -> bool:
+    set_a = {x.lower() for x in a}
+    set_b = {x.lower() for x in b}
+    return bool(set_a & set_b)
+
+
 def extract_pdf(pdf_path: Path) -> tuple[str, Dict[str, str]]:
     try:
         import pypdf
@@ -486,6 +499,38 @@ def rows_to_graph(
 
 
 
+def resolve_edge_type(edge: Dict[str, object], nodes_by_id: Dict[int, Dict[str, object]]) -> str:
+    base = str(edge.get("type", "related"))
+    if base != "related":
+        return base
+
+    src = nodes_by_id.get(int(edge["source"]))
+    tgt = nodes_by_id.get(int(edge["target"]))
+    if not src or not tgt:
+        return base
+
+    src_tags = src.get("tags") or []
+    tgt_tags = tgt.get("tags") or []
+    src_kw = src.get("keywords") or []
+    tgt_kw = tgt.get("keywords") or []
+    src_auth = split_authors(src.get("authors"))
+    tgt_auth = split_authors(tgt.get("authors"))
+
+    if has_overlap(src_tags, tgt_tags):
+        return "related-tag"
+    if has_overlap(src_kw, tgt_kw):
+        return "related-keyword"
+    if has_overlap(src_auth, tgt_auth):
+        return "related-author"
+    return base
+
+
+def annotate_edges(data: Dict[str, List[Dict[str, object]]]) -> None:
+    nodes_by_id = {int(n["id"]): n for n in data.get("nodes", [])}
+    for edge in data.get("links", []):
+        edge["resolved_type"] = resolve_edge_type(edge, nodes_by_id)
+
+
 def write_json_graph(data: Dict[str, List[Dict[str, object]]], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -508,14 +553,21 @@ def to_dot(data: Dict[str, List[Dict[str, object]]]) -> str:
         if node.get("venue"):
             details.append(str(node["venue"]))
         detail_str = ", ".join(details)
-        label_parts = [escape_label(str(node.get("title", "")))]
+
+        label_lines = [escape_label(str(node.get("title", "")))]
         if detail_str:
-            label_parts.append(f"({escape_label(detail_str)})")
-        label = " ".join(label_parts)
+            label_lines.append(escape_label(detail_str))
+        if node.get("authors"):
+            label_lines.append(escape_label(f"authors: {node['authors']}"))
+        if node.get("keywords"):
+            kws = ", ".join(node["keywords"])
+            label_lines.append(escape_label(f"keywords: {kws}"))
+
+        label = "\\n".join(label_lines)
         lines.append(f'  "{node["id"]}" [label="{label}"];')
 
     for edge in data.get("links", []):
-        label = escape_label(str(edge.get("type", "related")))
+        label = escape_label(str(edge.get("resolved_type", edge.get("type", "related"))))
         lines.append(f'  "{edge["source"]}" -> "{edge["target"]}" [label="{label}"];')
 
     lines.append("}")
@@ -532,6 +584,7 @@ def cmd_export(args: argparse.Namespace) -> None:
     conn = connect(db_path)
     init_db(conn)
     data = rows_to_graph(conn, project_id=args.project_id)
+    annotate_edges(data)
 
     json_path = Path(args.json_out)
     dot_path = Path(args.dot_out) if args.dot_out else None

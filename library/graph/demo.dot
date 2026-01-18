@@ -1,0 +1,11 @@
+digraph Papers {
+  rankdir=LR;
+  node [shape=box, style=rounded];
+  "3" [label="The digitization of agricultural industry a systematic literature review on agriculture 4.0\nproj:demo, 2022, Smart Agricultural Technology\nauthors: abbasi, rabiya and martinez, pablo and ahmad, rafiq\nkeywords: machine learning, optimization, hybrid methods, literature review, clustering, classification"];
+  "4" [label="Transformative technologies in digital agriculture: Leveraging Internet of Things, remote sensing, and artificial intelligence for smart crop management\nproj:demo, 2024, Journal of Sensor and Actuator Networks\nauthors: fuentes-peailillo, fernando and gutter, karen and vega, ricardo and silva, gilda carrasco\nkeywords: digital agriculture, sensor networks, smart crop management, remote sensing, internet of things, machine learning"];
+  "5" [label="The impact of 6G-IoT technologies on the development of agriculture 5.0: A review\nproj:demo, 2023, Electronics\nauthors: polymeni, sofia and plastras, stefanos and skoutas, dimitrios n and kormentzas, georgios and skianis, charalabos"];
+  "3" -> "4" [label="related-keyword"];
+  "4" -> "3" [label="related-keyword"];
+  "4" -> "5" [label="related-tag"];
+  "5" -> "4" [label="related-tag"];
+}

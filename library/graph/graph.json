@@ -58,6 +58,68 @@
       "extra": null,
       "bibtex": null,
       "file_path": "library/papers/Wise recommender: LLMs refined by iterative critics.pdf"
+    },
+    {
+      "id": 3,
+      "paper_id": null,
+      "project_id": "demo",
+      "title": "The digitization of agricultural industry--a systematic literature review on agriculture 4.0",
+      "abstract": null,
+      "keywords": [
+        "Machine learning",
+        "Optimization",
+        "Hybrid methods",
+        "Literature review",
+        "Clustering",
+        "Classification"
+      ],
+      "year": 2022,
+      "venue": "Smart Agricultural Technology",
+      "authors": "Abbasi, Rabiya and Martinez, Pablo and Ahmad, Rafiq",
+      "doi": null,
+      "url": null,
+      "tags": [],
+      "relevance": null,
+      "dataset_used": null,
+      "methods": null,
+      "metrics": null,
+      "limitations": null,
+      "future_work": null,
+      "summary": null,
+      "extra": null,
+      "bibtex": "@article{abbasi2022digitization,\n  title={The digitization of agricultural industry--a systematic literature review on agriculture 4.0},\n  author={Abbasi, Rabiya and Martinez, Pablo and Ahmad, Rafiq},\n  journal={Smart Agricultural Technology},\n  volume={2},\n  pages={100042},\n  year={2022},\n  publisher={Elsevier}\n}",
+      "file_path": null
+    },
+    {
+      "id": 4,
+      "paper_id": null,
+      "project_id": "demo",
+      "title": "Transformative technologies in digital agriculture: Leveraging Internet of Things, remote sensing, and artificial intelligence for smart crop management",
+      "abstract": null,
+      "keywords": [
+        "digital agriculture",
+        "sensor networks",
+        "smart crop management",
+        "remote sensing",
+        "Internet of Things",
+        "Machine learning"
+      ],
+      "year": 2024,
+      "venue": "Journal of Sensor and Actuator Networks",
+      "authors": "Fuentes-Peailillo, Fernando and Gutter, Karen and Vega, Ricardo and Silva, Gilda Carrasco",
+      "doi": null,
+      "url": null,
+      "tags": [],
+      "relevance": null,
+      "dataset_used": null,
+      "methods": null,
+      "metrics": null,
+      "limitations": null,
+      "future_work": null,
+      "summary": null,
+      "extra": null,
+      "bibtex": "@article{fuentes2024transformative,\n  title={Transformative technologies in digital agriculture: Leveraging Internet of Things, remote sensing, and artificial intelligence for smart crop management},\n  author={Fuentes-Peailillo, Fernando and Gutter, Karen and Vega, Ricardo and Silva, Gilda Carrasco},\n  journal={Journal of Sensor and Actuator Networks},\n  volume={13},\n  number={4},\n  pages={39},\n  year={2024},\n  publisher={MDPI}\n}",
+      "file_path": null
     }
   ],
   "links": [
@@ -65,13 +127,29 @@
       "source": 1,
       "target": 2,
       "type": "shared-keyword",
-      "note": "Recommendation system"
+      "note": "Recommendation system",
+      "resolved_type": "shared-keyword"
     },
     {
       "source": 2,
       "target": 1,
       "type": "shared-keyword",
-      "note": "Recommendation system"
+      "note": "Recommendation system",
+      "resolved_type": "shared-keyword"
+    },
+    {
+      "source": 3,
+      "target": 4,
+      "type": "related",
+      "note": null,
+      "resolved_type": "related-keyword"
+    },
+    {
+      "source": 4,
+      "target": 3,
+      "type": "related",
+      "note": null,
+      "resolved_type": "related-keyword"
     }
   ]
 }

@@ -7,6 +7,7 @@ interface MultiSelectProps {
   selected: string[];
   onChange: (selected: string[]) => void;
   placeholder?: string;
+  className?: string;
 }
 
 export function MultiSelect({
@@ -15,6 +16,7 @@ export function MultiSelect({
   selected = [],
   onChange,
   placeholder = "Select...",
+  className = "",
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,7 +46,10 @@ export function MultiSelect({
   };
 
   return (
-    <div className="flex flex-col gap-1 w-full" ref={containerRef}>
+    <div
+      className={`flex flex-col gap-1 w-full ${className}`}
+      ref={containerRef}
+    >
       <label className="text-xs font-semibold text-[var(--color-text-subtle)] uppercase tracking-wider">
         {label}
       </label>

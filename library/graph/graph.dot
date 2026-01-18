@@ -1,8 +1,12 @@
 digraph Papers {
   rankdir=LR;
   node [shape=box, style=rounded];
-  "1" [label="Dynamic feedback loops in recommender systems: Analyzing fairness, popularity bias, and user group disparities (pid:s10844-026-01025-y, 2026)"];
-  "2" [label="Wise recommender: LLMs refined by iterative critics (2026)"];
+  "1" [label="Dynamic feedback loops in recommender systems: Analyzing fairness, popularity bias, and user group disparities\npid:s10844-026-01025-y, 2026\nkeywords: machine learning, data mining, Recommendation system"];
+  "2" [label="Wise recommender: LLMs refined by iterative critics\n2026\nauthors: Zhisheng Yang\nkeywords: Large Language Model, Recommendation system, Interactive critic"];
+  "3" [label="The digitization of agricultural industry--a systematic literature review on agriculture 4.0\nproj:demo, 2022, Smart Agricultural Technology\nauthors: Abbasi, Rabiya and Martinez, Pablo and Ahmad, Rafiq\nkeywords: Machine learning, Optimization, Hybrid methods, Literature review, Clustering, Classification"];
+  "4" [label="Transformative technologies in digital agriculture: Leveraging Internet of Things, remote sensing, and artificial intelligence for smart crop management\nproj:demo, 2024, Journal of Sensor and Actuator Networks\nauthors: Fuentes-Peailillo, Fernando and Gutter, Karen and Vega, Ricardo and Silva, Gilda Carrasco\nkeywords: digital agriculture, sensor networks, smart crop management, remote sensing, Internet of Things, Machine learning"];
   "1" -> "2" [label="shared-keyword"];
   "2" -> "1" [label="shared-keyword"];
+  "3" -> "4" [label="related-keyword"];
+  "4" -> "3" [label="related-keyword"];
 }

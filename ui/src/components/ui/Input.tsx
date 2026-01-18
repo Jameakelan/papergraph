@@ -4,13 +4,17 @@ import type { InputHTMLAttributes } from "react";
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  containerClassName?: string;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, className = "", ...props }, ref) => {
+  (
+    { label, error, className = "", containerClassName = "", ...props },
+    ref,
+  ) => {
     return (
       <div
-        className="flex flex-col gap-1.5"
+        className={`flex flex-col gap-1.5 ${containerClassName}`}
         style={{ display: "flex", flexDirection: "column", gap: "6px" }}
       >
         {label && (

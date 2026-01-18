@@ -1,0 +1,4 @@
+digraph Papers {
+  rankdir=LR;
+  node [shape=box, style=rounded];
+}

@@ -67,7 +67,10 @@ export function Card({
           {actions && <div className="flex gap-2">{actions}</div>}
         </div>
       )}
-      <div className="p-4" style={{ padding: "var(--space-4)" }}>
+      <div
+        className="p-4 flex-1 flex flex-col overflow-hidden"
+        style={{ padding: "var(--space-4)" }}
+      >
         {children}
       </div>
     </div>

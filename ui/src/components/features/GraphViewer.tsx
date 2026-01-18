@@ -67,7 +67,7 @@ const GraphViewer = memo(
           ) => {
             if (!link.type) return;
 
-            const label = link.type;
+            const label = link.resolved_type || link.type;
             const fontSize = 12 / globalScale;
             ctx.font = `${fontSize}px Sans-Serif`;
             const textWidth = ctx.measureText(label).width;
@@ -107,6 +107,42 @@ const GraphViewer = memo(
           backgroundColor="transparent"
           d3VelocityDecay={0.3}
           cooldownTicks={100}
+          nodeCanvasObject={(
+            node: any,
+            ctx: CanvasRenderingContext2D,
+            globalScale: number,
+          ) => {
+            const label = (() => {
+              if (!node.authors) return node.title || node.id;
+              const firstAuthor = node.authors.split(" and ")[0].split(",")[0]; // Get LastName of first author
+              const year = node.year || "?";
+              return `(${firstAuthor}, ${year})`;
+            })();
+
+            const fontSize = 12 / globalScale;
+            ctx.font = `${fontSize}px Sans-Serif`;
+
+            // Draw Node Circle
+            const r = 6;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
+            ctx.fillStyle = node.id === selectedNodeId ? "#6366f1" : "#94a3b8";
+            ctx.fill();
+
+            // Draw Border if selected
+            if (node.id === selectedNodeId) {
+              ctx.lineWidth = 2 / globalScale;
+              ctx.strokeStyle = "#fff";
+              ctx.stroke();
+            }
+
+            // Draw Label
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = node.id === selectedNodeId ? "#4f46e5" : "#64748b"; // Darker text for visibility
+            ctx.fillText(label, node.x, node.y + r + fontSize);
+          }}
+          nodeCanvasObjectMode={() => "replace"}
         />
       </div>
     );

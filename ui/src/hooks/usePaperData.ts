@@ -1,93 +1,103 @@
 
 import { useState, useCallback, useEffect } from 'react'
-import initSqlJs from 'sql.js'
-import type { SqlJsStatic } from 'sql.js'
 
 export type PaperRow = {
   id: number
   paper_id?: string | null
+  project_id?: string | null
   title: string
-  authors?: string | null
+  abstract?: string | null
+  keywords?: string | null
   year?: number | null
   venue?: string | null
+  authors?: string | null
   doi?: string | null
+  url?: string | null
   tags?: string | null
   relevance?: string | null
   dataset_used?: string | null
   methods?: string | null
+  metrics?: string | null
+  gap?: string | null
+  limitations?: string | null
+  future_work?: string | null
+  summary?: string | null
+  notes?: string | null
+  extra?: string | null
+  bibtex?: string | null
+  file_path?: string | null
+  added_at?: string
 }
 
-let sqlInstance: SqlJsStatic | null = null
 
-async function getSql() {
-  if (!sqlInstance) {
-    sqlInstance = await initSqlJs({
-      locateFile: (file: string) => `${import.meta.env.BASE_URL}${file}`,
-    })
-  }
-  return sqlInstance
-}
-
-export function usePaperData(dbPath: string, projectId?: string) {
+export function usePaperData(projectId?: string) {
   const [papers, setPapers] = useState<PaperRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const loadPapers = useCallback(async (path: string, pid?: string) => {
+  const loadPapers = useCallback(async (pid?: string) => {
     setLoading(true)
     setError(null)
     try {
-      const SQL = await getSql()
-      const response = await fetch(path)
-      if (!response.ok) throw new Error(`Failed to fetch DB: ${path}`)
-      const buffer = await response.arrayBuffer()
-      const db = new SQL.Database(new Uint8Array(buffer))
-      
-      let query = `
-        SELECT id, paper_id, title, authors, year, venue, doi, tags, relevance, dataset_used, methods
-        FROM papers
-      `
-      
-      // If projectId is provided, filter by it.
-      // Note: This assumes the 'papers' table has a 'project_id' column, which we verified.
-      if (pid) {
-        query += ` WHERE project_id = '${pid}'`
-      }
-
-      query += ` ORDER BY added_at DESC, id DESC`
-
-      const result = db.exec(query)
-      
-      if (result.length > 0) {
-        const columns = result[0].columns
-        const values = result[0].values
-        const rows = values.map((row) => {
-          const obj: any = {}
-          columns.forEach((col, i) => {
-            obj[col] = row[i]
-          })
-          return obj as PaperRow
-        })
-        setPapers(rows)
-      } else {
-        setPapers([])
-      }
-      db.close()
+      const url = pid ? `/api/papers?projectId=${pid}` : '/api/papers'
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('Failed to fetch papers')
+      const data = await response.json()
+      setPapers(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error loading SQLite DB')
-      setPapers([])
+      setError(err instanceof Error ? err.message : 'Error loading papers')
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    loadPapers(dbPath, projectId)
-  }, [dbPath, projectId, loadPapers])
+    loadPapers(projectId)
+  }, [projectId, loadPapers])
 
-  const deletePaper = useCallback((id: number) => {
-    setPapers((prev) => prev.filter((p) => p.id !== id))
+  const addPaper = useCallback(async (paper: Omit<PaperRow, 'id'>) => {
+    try {
+      const res = await fetch('/api/papers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paper),
+      })
+      if (!res.ok) throw new Error('Failed to add paper')
+      await loadPapers(projectId)
+      return true
+    } catch (e) {
+      console.error(e)
+      return false
+    }
+  }, [projectId, loadPapers])
+
+  const updatePaper = useCallback(async (id: number, updates: Partial<PaperRow>) => {
+    try {
+      const res = await fetch('/api/papers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates }),
+      })
+      if (!res.ok) throw new Error('Failed to update paper')
+      await loadPapers(projectId)
+      return true
+    } catch (e) {
+      console.error(e)
+      return false
+    }
+  }, [projectId, loadPapers])
+
+  const deletePaper = useCallback(async (id: number) => {
+    if (!confirm('Are you sure you want to delete this paper?')) return
+    try {
+      const res = await fetch(`/api/papers?id=${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete paper')
+      setPapers((prev) => prev.filter((p) => p.id !== id))
+    } catch (e) {
+       console.error(e)
+       alert('Failed to delete paper')
+    }
   }, [])
 
-  return { papers, loading, error, reload: () => loadPapers(dbPath, projectId), deletePaper }
+  return { papers, loading, error, reload: () => loadPapers(projectId), addPaper, updatePaper, deletePaper }
 }

@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useGraphData } from "../../hooks/useGraphData";
+import type { PaperRow } from "../../hooks/usePaperData";
 import { usePaperData } from "../../hooks/usePaperData";
 import GraphViewer from "../features/GraphViewer";
 import { ControlPanel } from "../features/ControlPanel";
@@ -8,8 +9,9 @@ import { InsightsPanel } from "../features/InsightsPanel";
 import { PaperList } from "../features/PaperList";
 import { NodeDetails } from "../features/NodeDetails";
 import { Button } from "../ui/Button";
-
-const DEFAULT_DB_PATH = "/papers.db";
+import { EditPaperModal } from "../features/EditPaperModal";
+import { BibtexViewerModal } from "../features/BibtexViewerModal";
+import { BuildLinkModal } from "../features/BuildLinkModal";
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -23,12 +25,13 @@ export function ProjectView() {
     reload: reloadGraph,
   } = useGraphData(graphUrl);
 
-  // We'll update usePaperData to accept projectId later
   const {
     papers,
     loading: papersLoading,
     deletePaper,
-  } = usePaperData(DEFAULT_DB_PATH, projectId);
+    addPaper,
+    updatePaper,
+  } = usePaperData(projectId);
 
   // State
   const [selectedNodeId, setSelectedNodeId] = useState<string | number | null>(
@@ -39,6 +42,49 @@ export function ProjectView() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedRelationTypes, setSelectedRelationTypes] = useState<string[]>(
     [],
+  );
+
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPaper, setEditingPaper] = useState<PaperRow | undefined>(
+    undefined,
+  );
+
+  // BibTeX Modal State
+  const [isBibtexModalOpen, setIsBibtexModalOpen] = useState(false);
+
+  // Build Link Modal State
+  const [isBuildLinkModalOpen, setIsBuildLinkModalOpen] = useState(false);
+
+  const handleAddPaper = useCallback(() => {
+    setEditingPaper(undefined);
+    setIsEditModalOpen(true);
+  }, []);
+
+  const handleEditPaper = useCallback((paper: PaperRow) => {
+    setEditingPaper(paper);
+    setIsEditModalOpen(true);
+  }, []);
+
+  const handleViewBibtex = useCallback(() => {
+    setIsBibtexModalOpen(true);
+  }, []);
+
+  const handleSavePaper = useCallback(
+    async (data: Partial<PaperRow>) => {
+      if (editingPaper) {
+        await updatePaper(editingPaper.id, data);
+      } else {
+        if (!projectId) return; // Should not happen in project view
+        await addPaper({
+          title: data.title!,
+          project_id: projectId,
+          ...data,
+        } as any);
+      }
+      setIsEditModalOpen(false);
+    },
+    [editingPaper, projectId, addPaper, updatePaper],
   );
 
   // Extract unique values for filters
@@ -148,9 +194,16 @@ export function ProjectView() {
       <aside className="w-[320px] lg:w-[360px] flex flex-col border-r border-[var(--color-border)] bg-[var(--color-bg-surface)] backdrop-blur-md h-full overflow-hidden">
         <div className="p-4 border-b border-[var(--color-border)] flex-shrink-0 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
-              PaperGraph
-            </h1>
+            <div className="flex items-center gap-3">
+              <img
+                src="/logo.png"
+                alt="Logo"
+                className="w-10 h-10 object-contain"
+              />
+              <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                PaperGraph
+              </h1>
+            </div>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
               Project: {projectId || "Default"}
             </p>
@@ -178,6 +231,65 @@ export function ProjectView() {
             allRelationTypes={allRelationTypes}
             selectedRelationTypes={selectedRelationTypes}
             onRelationTypesChange={setSelectedRelationTypes}
+            onBuildLink={
+              projectId ? () => setIsBuildLinkModalOpen(true) : undefined
+            }
+            onAutoDiscoverLinks={
+              projectId
+                ? async () => {
+                    if (
+                      confirm(
+                        "Auto-discover relationship links between papers based on shared keywords, tags, and authors?",
+                      )
+                    ) {
+                      try {
+                        const res = await fetch("/api/projects/auto-links", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ projectId }),
+                        });
+                        if (res.ok) {
+                          alert("Auto-discovery complete! Reloading graph...");
+                          reloadGraph();
+                        } else {
+                          const err = await res.json();
+                          alert(`Auto-discovery failed: ${err.error}`);
+                        }
+                      } catch (e: any) {
+                        alert(`Auto-discovery error: ${e.message}`);
+                      }
+                    }
+                  }
+                : undefined
+            }
+            onBuildGraph={
+              projectId
+                ? async () => {
+                    if (
+                      confirm(
+                        "Are you sure you want to rebuild the graph and BibTeX?",
+                      )
+                    ) {
+                      try {
+                        const res = await fetch("/api/projects/build", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ projectId }),
+                        });
+                        if (res.ok) {
+                          alert("Build triggered successfully!");
+                          reloadGraph();
+                        } else {
+                          const err = await res.json();
+                          alert(`Build failed: ${err.error}`);
+                        }
+                      } catch (e: any) {
+                        alert(`Build error: ${e.message}`);
+                      }
+                    }
+                  }
+                : undefined
+            }
           />
 
           <InsightsPanel
@@ -204,27 +316,56 @@ export function ProjectView() {
             onNodeClick={handleNodeClick}
             selectedNodeId={selectedNodeId}
           />
-
-          {/* Overlay Title */}
-          <div className="absolute top-4 left-4 pointer-events-none">
-            <div className="bg-[var(--color-bg-surface)] backdrop-blur px-3 py-1 rounded-[var(--radius-sm)] border border-[var(--color-border)]">
-              <span className="text-xs font-semibold text-[var(--color-text-subtle)]">
-                Interactive Mode
-              </span>
-            </div>
-          </div>
         </div>
 
         {/* Bottom Drawer / Split View for Papers Table */}
-        <div className="h-[35%] min-h-[200px] border-t border-[var(--color-border)] bg-[var(--color-bg-surface)] backdrop-blur-lg flex flex-col relative z-10 shadow-[-10px_-10px_30px_rgba(0,0,0,0.2)]">
+        <div className="h-[40vh] min-h-[250px] max-h-[45vh] border-t border-[var(--color-border)] bg-[var(--color-bg-surface)] backdrop-blur-lg flex flex-col relative z-10 shadow-[-10px_-10px_30px_rgba(0,0,0,0.2)]">
           <PaperList
             papers={papers}
             loading={papersLoading}
             onSelect={handleSelectPaper}
             onDelete={deletePaper}
+            onAdd={handleAddPaper}
+            onEdit={handleEditPaper}
+            onViewBibtex={projectId ? handleViewBibtex : undefined}
           />
         </div>
       </main>
+
+      {isEditModalOpen && (
+        <EditPaperModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          paper={editingPaper}
+          onSave={handleSavePaper}
+        />
+      )}
+
+      {isBibtexModalOpen && projectId && (
+        <BibtexViewerModal
+          isOpen={isBibtexModalOpen}
+          onClose={() => setIsBibtexModalOpen(false)}
+          projectId={projectId}
+        />
+      )}
+
+      {isBuildLinkModalOpen && projectId && (
+        <BuildLinkModal
+          isOpen={isBuildLinkModalOpen}
+          onClose={() => setIsBuildLinkModalOpen(false)}
+          projectId={projectId}
+          nodes={graph.nodes}
+          initialSourceId={selectedNodeId}
+          onLinkCreated={() => {
+            alert(
+              "Link created! You may need to rebuild the graph to see changes.",
+            );
+            // Optional: trigger rebuild or just reload graph if it was auto-updated.
+            // Since we didn't auto-rebuild in backend, we just close.
+            // User can click Rebuild Graph manually.
+          }}
+        />
+      )}
     </div>
   );
 }

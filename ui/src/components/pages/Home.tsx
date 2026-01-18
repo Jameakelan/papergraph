@@ -27,9 +27,16 @@ export function Home() {
     <div className="min-h-screen bg-[var(--color-bg-app)] text-[var(--color-text-main)] p-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <header className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
-            PaperGraph Projects
-          </h1>
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="PaperGraph Logo"
+              className="w-10 h-10 object-contain"
+            />
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+              PaperGraph
+            </h1>
+          </div>
           <p className="text-[var(--color-text-muted)]">
             Manage your research projects and knowledge graphs.
           </p>
