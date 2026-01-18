@@ -1,6 +1,6 @@
 # Paper Graph Viewer (Vite + React)
 
-Interactive UI for exploring the paper relationship graph exported by `paper_db.py`. It loads a `graph.json` containing `nodes` and `links`, renders a force-directed graph, and offers filters (search, tags, relation types, relevance, year) plus a detail sidebar. The homepage also shows a tabular list of papers read directly from the SQLite DB via `sql.js`.
+Interactive UI for exploring the paper relationship graph exported by `paper_db.py`. It loads a `graph.json` containing `nodes` and `links`, renders a force-directed graph, offers filters (search, tags, relation types, relevance, year), smart insights (top tags/relations/years, key nodes), recommendations, and a detail sidebar. The homepage also shows a tabular list of papers read directly from the SQLite DB via `sql.js`.
 
 ## Getting started
 

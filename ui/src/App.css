@@ -123,6 +123,10 @@ h4 {
   margin-bottom: 16px;
 }
 
+.insights-panel {
+  margin-bottom: 16px;
+}
+
 .paper-actions {
   min-width: 260px;
 }
@@ -133,6 +137,62 @@ h4 {
   justify-content: space-between;
   gap: 12px;
   margin: 8px 0;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+
+.stat-card {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.insight-list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: grid;
+  gap: 6px;
+}
+
+.insight-list button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+}
+
+.insight-toggles {
+  display: flex;
+  gap: 14px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.block.tight {
+  border-top: none;
+  padding-top: 0;
 }
 
 .table-wrap {

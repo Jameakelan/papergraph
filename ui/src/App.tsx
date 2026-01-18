@@ -106,6 +106,8 @@ function App() {
   const [selectedId, setSelectedId] = useState<string | number | null>(null)
   const [status, setStatus] = useState('')
   const [dimensions, setDimensions] = useState<Dimensions>({ width: 1200, height: 700 })
+  const [highlightKeyNodes, setHighlightKeyNodes] = useState(true)
+  const [highlightRecommendations, setHighlightRecommendations] = useState(true)
 
   const [paperPath, setPaperPath] = useState(DEFAULT_DB_PATH)
   const [paperPathInput, setPaperPathInput] = useState(DEFAULT_DB_PATH)
@@ -319,6 +321,76 @@ function App() {
     hideIsolated,
   ])
 
+  const degreeMap = useMemo(() => {
+    const map = new Map<PaperNode['id'], number>()
+    graph.links.forEach((link) => {
+      const sourceId = normalizeId(link.source) as PaperNode['id']
+      const targetId = normalizeId(link.target) as PaperNode['id']
+      map.set(sourceId, (map.get(sourceId) ?? 0) + 1)
+      map.set(targetId, (map.get(targetId) ?? 0) + 1)
+    })
+    return map
+  }, [graph.links])
+
+  const tagCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    graph.nodes.forEach((node) => {
+      node.tags?.forEach((tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1))
+    })
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+  }, [graph.nodes])
+
+  const tagDiversity = useMemo(() => {
+    const set = new Set<string>()
+    graph.nodes.forEach((node) => node.tags?.forEach((tag) => set.add(tag)))
+    return set.size
+  }, [graph.nodes])
+
+  const relationCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    graph.links.forEach((link) => {
+      if (link.type) counts.set(link.type, (counts.get(link.type) ?? 0) + 1)
+    })
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+  }, [graph.links])
+
+  const relationDiversity = useMemo(() => {
+    const set = new Set<string>()
+    graph.links.forEach((link) => link.type && set.add(link.type))
+    return set.size
+  }, [graph.links])
+
+  const yearCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    graph.nodes.forEach((node) => {
+      if (node.year) {
+        const key = String(node.year)
+        counts.set(key, (counts.get(key) ?? 0) + 1)
+      }
+    })
+    return Array.from(counts.entries())
+      .sort((a, b) => Number(b[0]) - Number(a[0]))
+      .slice(0, 6)
+  }, [graph.nodes])
+
+  const keyNodes = useMemo(() => {
+    return [...graph.nodes]
+      .map((node) => ({ ...node, degree: degreeMap.get(node.id) ?? 0 }))
+      .sort((a, b) => b.degree - a.degree)
+      .slice(0, 5)
+  }, [graph.nodes, degreeMap])
+
+  const keyNodeIds = useMemo(() => new Set(keyNodes.map((node) => node.id)), [keyNodes])
+
+  const averageDegree = useMemo(() => {
+    if (!graph.nodes.length) return 0
+    return Number(((graph.links.length * 2) / graph.nodes.length).toFixed(1))
+  }, [graph.links.length, graph.nodes.length])
+
   const filteredPapers = useMemo(() => {
     const text = paperSearch.trim().toLowerCase()
     if (!text) return papers
@@ -381,6 +453,52 @@ function App() {
     })
     return filteredGraph.nodes.filter((node) => neighborIds.has(node.id))
   }, [filteredGraph.links, filteredGraph.nodes, selectedId])
+
+  const recommended = useMemo(() => {
+    if (!selectedId || !selectedNode) {
+      return []
+    }
+    const neighborIds = new Set<PaperNode['id']>()
+    filteredGraph.links.forEach((link) => {
+      neighborIds.add(normalizeId(link.source) as PaperNode['id'])
+      neighborIds.add(normalizeId(link.target) as PaperNode['id'])
+    })
+    const selectedTags = new Set(selectedNode.tags ?? [])
+    const selectedKeywords = new Set(selectedNode.keywords ?? [])
+
+    const candidates = filteredGraph.nodes.filter((node) => node.id !== selectedId)
+    const scored = candidates
+      .map((node) => {
+        const tags = node.tags ?? []
+        const keywords = node.keywords ?? []
+        const tagOverlap = tags.filter((tag) => selectedTags.has(tag)).length
+        const keywordOverlap = keywords.filter((kw) => selectedKeywords.has(kw)).length
+        const venueBoost = selectedNode.venue && node.venue && selectedNode.venue === node.venue ? 1 : 0
+        const relevanceBoost =
+          selectedNode.relevance && node.relevance && selectedNode.relevance === node.relevance ? 0.5 : 0
+        const linkBoost = neighborIds.has(node.id) ? 1.5 : 0
+        const score = tagOverlap * 2 + keywordOverlap + venueBoost + relevanceBoost + linkBoost
+        if (score <= 0) return null
+        const reasons = [] as string[]
+        if (tagOverlap) reasons.push(`${tagOverlap} shared tag${tagOverlap > 1 ? 's' : ''}`)
+        if (keywordOverlap) reasons.push(`${keywordOverlap} shared keyword${keywordOverlap > 1 ? 's' : ''}`)
+        if (venueBoost) reasons.push('same venue')
+        if (linkBoost) reasons.push('already linked')
+        if (relevanceBoost) reasons.push('similar relevance')
+        return { node, score, reasons }
+      })
+      .filter(Boolean) as { node: PaperNode; score: number; reasons: string[] }[]
+
+    return scored
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map((item) => ({ ...item, reason: item.reasons.join(' · ') }))
+  }, [filteredGraph.links, filteredGraph.nodes, selectedId, selectedNode])
+
+  const recommendedIds = useMemo(
+    () => new Set(recommended.map((item) => item.node.id)),
+    [recommended],
+  )
 
   const relationColors = useMemo(() => {
     const map = new Map<string, string>()
@@ -568,6 +686,113 @@ function App() {
         </div>
       </section>
 
+      <section className="panel insights-panel">
+        <div className="panel-header">
+          <h2>Smart insights</h2>
+          <p className="subtle">
+            Quick stats plus auto-highlighting of high-value and suggested nodes.
+          </p>
+        </div>
+        <div className="stat-grid">
+          <div className="stat-card">
+            <p className="muted small-text">Distinct tags</p>
+            <strong>{tagDiversity}</strong>
+          </div>
+          <div className="stat-card">
+            <p className="muted small-text">Relation types</p>
+            <strong>{relationDiversity}</strong>
+          </div>
+          <div className="stat-card">
+            <p className="muted small-text">Avg degree</p>
+            <strong>{averageDegree}</strong>
+          </div>
+          <div className="stat-card">
+            <p className="muted small-text">Latest year</p>
+            <strong>{yearCounts[0]?.[0] ?? '—'}</strong>
+            <span className="muted small-text">{yearCounts[0]?.[1] ?? 0} works</span>
+          </div>
+        </div>
+        <div className="insight-grid">
+          <div className="block tight">
+            <h4>Top tags</h4>
+            <div className="pill-list">
+              {tagCounts.length ? (
+                tagCounts.map(([tag, count]) => (
+                  <span className="chip" key={`tag-${tag}`}>
+                    {tag} <span className="muted">({count})</span>
+                  </span>
+                ))
+              ) : (
+                <p className="muted">No tags yet.</p>
+              )}
+            </div>
+          </div>
+          <div className="block tight">
+            <h4>Top relations</h4>
+            <div className="pill-list">
+              {relationCounts.length ? (
+                relationCounts.map(([relation, count]) => (
+                  <span className="chip" key={`rel-${relation}`}>
+                    {relation} <span className="muted">({count})</span>
+                  </span>
+                ))
+              ) : (
+                <p className="muted">No relations yet.</p>
+              )}
+            </div>
+          </div>
+          <div className="block tight">
+            <h4>Recent years</h4>
+            <div className="pill-list">
+              {yearCounts.length ? (
+                yearCounts.map(([year, count]) => (
+                  <span className="chip" key={`year-${year}`}>
+                    {year} <span className="muted">({count})</span>
+                  </span>
+                ))
+              ) : (
+                <p className="muted">No years recorded.</p>
+              )}
+            </div>
+          </div>
+          <div className="block tight">
+            <h4>Key nodes (by degree)</h4>
+            <ul className="insight-list">
+              {keyNodes.length ? (
+                keyNodes.map((node) => (
+                  <li key={`key-${node.id}`}>
+                    <button type="button" onClick={() => setSelectedId(node.id)}>
+                      {node.title || 'Untitled'}
+                    </button>
+                    <span className="muted small-text">{degreeMap.get(node.id) ?? 0} links</span>
+                  </li>
+                ))
+              ) : (
+                <li className="muted">No nodes yet.</li>
+              )}
+            </ul>
+          </div>
+        </div>
+        <div className="insight-toggles">
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={highlightKeyNodes}
+              onChange={(event) => setHighlightKeyNodes(event.target.checked)}
+            />
+            <span>Highlight key nodes</span>
+          </label>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={highlightRecommendations}
+              onChange={(event) => setHighlightRecommendations(event.target.checked)}
+            />
+            <span>Highlight recommendations</span>
+          </label>
+        </div>
+      </section>
+
       <main className="layout">
         <section className="panel">
           <div className="panel-header">
@@ -736,12 +961,24 @@ function App() {
                 ) => {
                   const label = node.title ?? 'Untitled'
                   const fontSize = 10 / scale
+                  const isRecommended = highlightRecommendations && recommendedIds.has(node.id)
+                  const isKey = highlightKeyNodes && keyNodeIds.has(node.id)
+                  const radius = 6 + (isKey ? 2 : 0) + (isRecommended ? 2 : 0)
+
+                  let fill = nodeColor(node)
+                  if (selectedId === node.id) {
+                    fill = '#f97316'
+                  } else if (isRecommended) {
+                    fill = '#f59e0b'
+                  } else if (isKey) {
+                    fill = '#0ea5e9'
+                  }
+
                   ctx.font = `500 ${fontSize}px "Inter", system-ui, -apple-system, sans-serif`
                   ctx.textAlign = 'left'
                   ctx.textBaseline = 'middle'
 
-                  const radius = 6
-                  ctx.fillStyle = nodeColor(node)
+                  ctx.fillStyle = fill
                   ctx.beginPath()
                   ctx.arc(node.x ?? 0, node.y ?? 0, radius, 0, 2 * Math.PI)
                   ctx.fill()
@@ -880,6 +1117,24 @@ function App() {
                   </ul>
                 ) : (
                   <p className="muted">No linked works for this node.</p>
+                )}
+              </div>
+              <div className="block">
+                <h4>Smart suggestions</h4>
+                {recommended.length ? (
+                  <ul className="neighbor-list">
+                    {recommended.map((item) => (
+                      <li key={item.node.id}>
+                        <button type="button" onClick={() => setSelectedId(item.node.id)}>
+                          {item.node.title || 'Untitled'}{' '}
+                          {item.node.year ? <span className="muted">({item.node.year})</span> : null}
+                        </button>
+                        <div className="muted small-text">{item.reason || 'Shared metadata'}</div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="muted">No recommendations yet for this selection.</p>
                 )}
               </div>
             </div>
