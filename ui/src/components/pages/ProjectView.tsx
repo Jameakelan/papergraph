@@ -12,6 +12,7 @@ import { Button } from "../ui/Button";
 import { EditPaperModal } from "../features/EditPaperModal";
 import { BibtexViewerModal } from "../features/BibtexViewerModal";
 import { BuildLinkModal } from "../features/BuildLinkModal";
+import { DashboardModal } from "../features/DashboardModal";
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -56,6 +57,9 @@ export function ProjectView() {
   // Build Link Modal State
   const [isBuildLinkModalOpen, setIsBuildLinkModalOpen] = useState(false);
 
+  // Dashboard Modal State
+  const [isDashboardModalOpen, setIsDashboardModalOpen] = useState(false);
+
   const handleAddPaper = useCallback(() => {
     setEditingPaper(undefined);
     setIsEditModalOpen(true);
@@ -68,6 +72,10 @@ export function ProjectView() {
 
   const handleViewBibtex = useCallback(() => {
     setIsBibtexModalOpen(true);
+  }, []);
+
+  const handleViewDashboard = useCallback(() => {
+    setIsDashboardModalOpen(true);
   }, []);
 
   const handleSavePaper = useCallback(
@@ -328,6 +336,7 @@ export function ProjectView() {
             onAdd={handleAddPaper}
             onEdit={handleEditPaper}
             onViewBibtex={projectId ? handleViewBibtex : undefined}
+            onViewDashboard={projectId ? handleViewDashboard : undefined}
           />
         </div>
       </main>
@@ -364,6 +373,15 @@ export function ProjectView() {
             // Since we didn't auto-rebuild in backend, we just close.
             // User can click Rebuild Graph manually.
           }}
+        />
+      )}
+
+      {isDashboardModalOpen && projectId && (
+        <DashboardModal
+          isOpen={isDashboardModalOpen}
+          onClose={() => setIsDashboardModalOpen(false)}
+          projectId={projectId}
+          papers={papers}
         />
       )}
     </div>

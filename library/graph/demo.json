@@ -89,6 +89,32 @@
       "extra": null,
       "bibtex": "@article{polymeni2023impact,\n  title={The impact of 6G-IoT technologies on the development of agriculture 5.0: A review},\n  author={Polymeni, Sofia and Plastras, Stefanos and Skoutas, Dimitrios N and Kormentzas, Georgios and Skianis, Charalabos},\n  journal={Electronics},\n  volume={12},\n  number={12},\n  pages={2651},\n  year={2023},\n  publisher={MDPI}\n}",
       "file_path": null
+    },
+    {
+      "id": 6,
+      "paper_id": null,
+      "project_id": "demo",
+      "title": "Digital innovations for sustainable and resilient agricultural systems",
+      "abstract": null,
+      "keywords": [],
+      "year": 2023,
+      "venue": "European Review of Agricultural Economics",
+      "authors": "finger, robert",
+      "doi": null,
+      "url": null,
+      "tags": [
+        "iot"
+      ],
+      "relevance": null,
+      "dataset_used": null,
+      "methods": null,
+      "metrics": null,
+      "limitations": null,
+      "future_work": null,
+      "summary": null,
+      "extra": null,
+      "bibtex": "@article{finger2023digital,\n  title={Digital innovations for sustainable and resilient agricultural systems},\n  author={Finger, Robert},\n  journal={European Review of Agricultural Economics},\n  volume={50},\n  number={4},\n  pages={1277--1309},\n  year={2023},\n  publisher={Oxford University Press UK}\n}",
+      "file_path": null
     }
   ],
   "links": [
@@ -116,6 +142,34 @@
     {
       "source": 5,
       "target": 4,
+      "type": "related",
+      "note": null,
+      "resolved_type": "related-tag"
+    },
+    {
+      "source": 4,
+      "target": 6,
+      "type": "related",
+      "note": null,
+      "resolved_type": "related-tag"
+    },
+    {
+      "source": 6,
+      "target": 4,
+      "type": "related",
+      "note": null,
+      "resolved_type": "related-tag"
+    },
+    {
+      "source": 5,
+      "target": 6,
+      "type": "related",
+      "note": null,
+      "resolved_type": "related-tag"
+    },
+    {
+      "source": 6,
+      "target": 5,
       "type": "related",
       "note": null,
       "resolved_type": "related-tag"

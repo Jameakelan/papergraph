@@ -3,6 +3,7 @@ import { Card } from "../ui/Card";
 import { Chip } from "../ui/Chip";
 import { useState, useMemo } from "react";
 import { Input } from "../ui/Input";
+import { LayoutDashboard } from "lucide-react";
 
 interface PaperListProps {
   papers: PaperRow[];
@@ -12,6 +13,7 @@ interface PaperListProps {
   onAdd?: () => void;
   onEdit?: (paper: PaperRow) => void;
   onViewBibtex?: () => void;
+  onViewDashboard?: () => void;
 }
 
 export function PaperList({
@@ -22,6 +24,7 @@ export function PaperList({
   onAdd,
   onEdit,
   onViewBibtex,
+  onViewDashboard,
 }: PaperListProps) {
   const [search, setSearch] = useState("");
 
@@ -49,6 +52,16 @@ export function PaperList({
       className="h-full flex flex-col"
       actions={
         <div className="flex gap-2">
+          {onViewDashboard && (
+            <button
+              onClick={onViewDashboard}
+              className="text-xs bg-[var(--color-bg-surface-active)] border border-[var(--color-border)] text-[var(--color-text-main)] px-2 py-1 rounded hover:opacity-90 transition-opacity flex items-center gap-1"
+              title="View Dashboard"
+            >
+              <LayoutDashboard className="w-3 h-3" />
+              Dashboard
+            </button>
+          )}
           {onViewBibtex && (
             <button
               onClick={onViewBibtex}

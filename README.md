@@ -3,6 +3,7 @@
 A lightweight SQLite-backed CLI to catalog research papers, link them, export graphs, and manage BibTeX per project. Includes helper scripts for graph/BibTeX generation and relationship management.
 
 ## Features
+
 - Add or import papers (with PDF text extraction via `pypdf`).
 - Track rich metadata: project, identifiers, authors, keywords, tags, methods, metrics, gaps, limitations, future work, relevance, notes, BibTeX, file paths, fulltext.
 - Link papers (cites/extends/related/etc.) and auto-annotate edges by shared tags/keywords/authors.
@@ -11,7 +12,12 @@ A lightweight SQLite-backed CLI to catalog research papers, link them, export gr
 - Project scaffolding: `projects` table with optional `bib_text_path` for per-project BibTeX location.
 - Helper tools in `tools/` for graphs, BibTeX, and link creation.
 
+## Preview
+
+![PaperGraph Preview](docs/preview.png)
+
 ## Quickstart
+
 1. Install dependencies (see `INSTALL.md` for virtualenv instructions):
    ```bash
    pip install -r requirements.txt
@@ -46,6 +52,7 @@ A lightweight SQLite-backed CLI to catalog research papers, link them, export gr
    ```
 
 ## Directory layout
+
 - `paper_db.py` — main CLI and schema management.
 - `library/db/` — SQLite database (`papers.db`).
 - `library/graph/` — graph exports (JSON/DOT).
@@ -55,6 +62,7 @@ A lightweight SQLite-backed CLI to catalog research papers, link them, export gr
 - `prompts/` — prompt guidelines (e.g., aligning DB changes with UI).
 
 ## Notes
+
 - Graph labels include title, ids, project, year/venue, authors, keywords.
 - Edge labels are auto-resolved to `related-tag`, `related-keyword`, or `related-author` when the base type is `related` and fields overlap; otherwise the user-specified type is used.
 - Graphviz (`dot`) is optional; needed only to render DOT files to images.
