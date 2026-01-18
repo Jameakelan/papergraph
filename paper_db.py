@@ -31,9 +31,17 @@ def ensure_columns(conn: sqlite3.Connection, table: str, columns: Dict[str, str]
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(
         """
+        CREATE TABLE IF NOT EXISTS projects (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            description TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
         CREATE TABLE IF NOT EXISTS papers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             paper_id TEXT,
+            project_id TEXT,
             title TEXT NOT NULL,
             abstract TEXT,
             keywords TEXT,
@@ -54,7 +62,8 @@ def init_db(conn: sqlite3.Connection) -> None:
             notes TEXT,
             extra TEXT,
             bibtex TEXT,
-            added_at TEXT DEFAULT (datetime('now'))
+            added_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL
         );
 
         CREATE TABLE IF NOT EXISTS relationships (
@@ -80,6 +89,7 @@ def init_db(conn: sqlite3.Connection) -> None:
         "papers",
         {
             "paper_id": "TEXT",
+            "project_id": "TEXT",
             "abstract": "TEXT",
             "keywords": "TEXT",
             "relevance": "TEXT",
@@ -99,6 +109,9 @@ def init_db(conn: sqlite3.Connection) -> None:
     )
     conn.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_papers_paper_id ON papers(paper_id) WHERE paper_id IS NOT NULL;"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_papers_project_id ON papers(project_id) WHERE project_id IS NOT NULL;"
     )
     conn.commit()
 
@@ -216,10 +229,40 @@ def insert_paper(
     cur.execute(
         """
         INSERT INTO papers (
-            paper_id, title, abstract, keywords, year, venue, authors, doi, url, tags,
+            paper_id, project_id, title, abstract, keywords, year, venue, authors, doi, url, tags,
             relevance, dataset_used, methods, metrics, gap, limitations, future_work, summary, notes, extra,
             bibtex, file_path, fulltext
         )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            args.paper_id,
+            args.project_id,
+            args.title,
+            args.abstract,
+            ", ".join(keywords) if keywords else None,
+            args.year,
+            args.venue,
+            args.authors,
+            args.doi,
+            args.url,
+            ", ".join(tags) if tags else None,
+            args.relevance,
+            args.dataset_used,
+            args.methods,
+            args.metrics,
+            args.gap,
+            args.limitations,
+            args.future_work,
+            args.summary,
+            args.notes,
+            args.extra,
+            args.bibtex,
+            file_path,
+            fulltext,
+        ),
+    )
+
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
@@ -522,6 +565,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_p = subparsers.add_parser("add", help="Add a paper")
     add_p.add_argument("--paper-id", dest="paper_id", help="Custom paper identifier")
+    add_p.add_argument("--project-id", dest="project_id", help="Project UUID to link")
     add_p.add_argument("--title", required=True, help="Paper title")
     add_p.add_argument("--abstract", help="Paper abstract or notes")
     add_p.add_argument("--authors", help="Author list")
