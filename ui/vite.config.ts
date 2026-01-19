@@ -427,6 +427,57 @@ function serveProjectsApi(): Plugin {
   }
 }
 
+const serveBackupApi = (): Plugin => {
+  const libraryPath = path.resolve(__dirname, '../library')
+
+  return {
+    name: 'serve-backup-api',
+    configureServer(server) {
+      server.middlewares.use('/api/backup', async (req: any, res: any, next: any) => {
+        if (req.method === 'GET') {
+           try {
+             if (!fs.existsSync(libraryPath)) {
+               res.statusCode = 404
+               res.end(JSON.stringify({ error: 'Library not found' }))
+               return
+             }
+
+             res.setHeader('Content-Type', 'application/zip')
+             res.setHeader('Content-Disposition', 'attachment; filename="library_backup.zip"')
+
+             // Stream zip directly to response
+             // specific to unix/mac, requires zip to be installed
+             const { spawn } = await import('child_process')
+             const zip = spawn('zip', ['-r', '-', '.'], { cwd: libraryPath })
+
+             zip.stdout.pipe(res)
+
+             zip.stderr.on('data', (data) => {
+               console.error(`zip stderr: ${data}`)
+             })
+
+             zip.on('close', (code) => {
+               if (code !== 0) {
+                 console.error(`zip process exited with code ${code}`)
+                 // can't send error response here as headers sent, but we log it.
+               }
+             })
+
+           } catch (e: any) {
+             console.error('Backup Error:', e)
+             if (!res.headersSent) {
+                res.statusCode = 500
+                res.end(JSON.stringify({ error: e.message }))
+             }
+           }
+           return
+        }
+        next()
+      })
+    }
+  }
+}
+
 const serveNotesApi = (): Plugin => {
   const dbPath = path.resolve(__dirname, '../library/db/papers.db')
 
@@ -891,7 +942,7 @@ function serveInboxApi(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), serveLibraryDb(), serveLibraryGraph(), serveProjectsApi(), servePapersApi(), serveInboxApi(), serveNotesApi()],
+  plugins: [react(), serveLibraryDb(), serveLibraryGraph(), serveProjectsApi(), servePapersApi(), serveInboxApi(), serveNotesApi(), serveBackupApi()],
   resolve: {
     alias: {
       aframe: path.resolve(__dirname, 'src/shims/aframe.ts'),

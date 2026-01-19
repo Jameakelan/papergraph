@@ -5,7 +5,14 @@ import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Inbox } from "../features/Inbox"; // New Import
-import { Folder, Plus, Trash2, BookOpen, FlaskConical } from "lucide-react"; // Icons
+import {
+  Folder,
+  Plus,
+  Trash2,
+  BookOpen,
+  FlaskConical,
+  Download,
+} from "lucide-react"; // Icons
 
 export function Home() {
   const { projects, loading, addProject, deleteProject } = useProjectData();
@@ -25,23 +32,33 @@ export function Home() {
     setNewProjectName("");
   };
 
+  const handleBackup = () => {
+    window.location.href = "/api/backup";
+  };
+
   return (
     <div className="min-h-screen bg-[var(--color-bg-app)] text-[var(--color-text-main)] p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         {" "}
         {/* Increased max-width */}
-        <header className="flex flex-col gap-2 mb-8">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-500/10 rounded-xl">
-              <FlaskConical className="w-8 h-8 text-indigo-400" />
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-500/10 rounded-xl">
+                <FlaskConical className="w-8 h-8 text-indigo-400" />
+              </div>
+              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+                PaperGraph
+              </h1>
             </div>
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
-              PaperGraph
-            </h1>
+            <p className="text-[var(--color-text-muted)] ml-14">
+              Manage your research projects and knowledge graphs.
+            </p>
           </div>
-          <p className="text-[var(--color-text-muted)] ml-14">
-            Manage your research projects and knowledge graphs.
-          </p>
+          <Button variant="outline" onClick={handleBackup}>
+            <Download className="w-4 h-4 mr-2" />
+            Backup Library
+          </Button>
         </header>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content: Projects (2/3 width) */}

@@ -110,7 +110,10 @@ export function EditPaperModal({
     }
   }, [paper, isOpen]);
 
-  const handleChange = (key: keyof PaperRow, value: string | number) => {
+  const handleChange = <K extends keyof PaperRow>(
+    key: K,
+    value: PaperRow[K],
+  ) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
