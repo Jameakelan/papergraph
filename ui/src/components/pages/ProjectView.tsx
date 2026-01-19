@@ -14,6 +14,7 @@ import { BibtexViewerModal } from "../features/BibtexViewerModal";
 import { BuildLinkModal } from "../features/BuildLinkModal";
 import { DashboardModal } from "../features/DashboardModal";
 import { PreviewPaperModal } from "../features/PreviewPaperModal";
+import { AutoDiscoverModal } from "../features/AutoDiscoverModal";
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -58,6 +59,9 @@ export function ProjectView() {
   // Build Link Modal State
   const [isBuildLinkModalOpen, setIsBuildLinkModalOpen] = useState(false);
 
+  // Auto Discover Modal State
+  const [isAutoDiscoverModalOpen, setIsAutoDiscoverModalOpen] = useState(false);
+
   // Dashboard Modal State
   const [isDashboardModalOpen, setIsDashboardModalOpen] = useState(false);
 
@@ -72,7 +76,7 @@ export function ProjectView() {
   const isResizing = useRef(false);
   const containerRef = useRef<HTMLElement>(null);
 
-  // Handle resize drag
+  // ... resize logic remains same ...
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing.current || !containerRef.current) return;
@@ -147,6 +151,30 @@ export function ProjectView() {
     },
     [editingPaper, projectId, addPaper, updatePaper],
   );
+
+  // Auto Discover Logic
+  const handleAutoDiscover = async (
+    strategies: string[],
+    deleteExisting: boolean,
+  ) => {
+    if (!projectId) return;
+    try {
+      const res = await fetch("/api/projects/auto-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, strategies, deleteExisting }),
+      });
+      if (res.ok) {
+        alert("Auto-discovery complete! Reloading graph...");
+        reloadGraph();
+      } else {
+        const err = await res.json();
+        alert(`Auto-discovery failed: ${err.error}`);
+      }
+    } catch (e: any) {
+      alert(`Auto-discovery error: ${e.message}`);
+    }
+  };
 
   // Extract unique values for filters
   const { allKeywords, allTags, allRelationTypes } = useMemo(() => {
@@ -296,32 +324,7 @@ export function ProjectView() {
               projectId ? () => setIsBuildLinkModalOpen(true) : undefined
             }
             onAutoDiscoverLinks={
-              projectId
-                ? async () => {
-                    if (
-                      confirm(
-                        "Auto-discover relationship links between papers based on shared keywords, tags, and authors?",
-                      )
-                    ) {
-                      try {
-                        const res = await fetch("/api/projects/auto-links", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ projectId }),
-                        });
-                        if (res.ok) {
-                          alert("Auto-discovery complete! Reloading graph...");
-                          reloadGraph();
-                        } else {
-                          const err = await res.json();
-                          alert(`Auto-discovery failed: ${err.error}`);
-                        }
-                      } catch (e: any) {
-                        alert(`Auto-discovery error: ${e.message}`);
-                      }
-                    }
-                  }
-                : undefined
+              projectId ? () => setIsAutoDiscoverModalOpen(true) : undefined
             }
             onBuildGraph={
               projectId
@@ -442,6 +445,14 @@ export function ProjectView() {
             // Since we didn't auto-rebuild in backend, we just close.
             // User can click Rebuild Graph manually.
           }}
+        />
+      )}
+
+      {isAutoDiscoverModalOpen && projectId && (
+        <AutoDiscoverModal
+          isOpen={isAutoDiscoverModalOpen}
+          onClose={() => setIsAutoDiscoverModalOpen(false)}
+          onRun={handleAutoDiscover}
         />
       )}
 

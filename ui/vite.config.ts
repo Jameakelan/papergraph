@@ -361,7 +361,7 @@ function serveProjectsApi(): Plugin {
              req.on('data', (chunk: any) => { body += chunk })
              req.on('end', () => {
                try {
-                 const { projectId } = JSON.parse(body)
+                 const { projectId, strategies, deleteExisting } = JSON.parse(body)
                  if (!projectId) {
                    res.statusCode = 400
                    res.end(JSON.stringify({ error: 'Missing projectId' }))
@@ -370,7 +370,17 @@ function serveProjectsApi(): Plugin {
                  }
 
                  const autoLinkScript = path.resolve(__dirname, '../tools/auto_build_links.py')
-                 const cmd = `python3 "${autoLinkScript}" --project-id "${projectId}"`
+                 let cmd = `python3 "${autoLinkScript}" --project-id "${projectId}"`
+                 
+                 // Append strategies if present, otherwise default is used by python script (or we can be explicit)
+                 if (Array.isArray(strategies) && strategies.length > 0) {
+                    const stratArg = strategies.join(' ')
+                    cmd += ` --strategies ${stratArg}`
+                 }
+
+                 if (deleteExisting) {
+                    cmd += ` --delete-existing`
+                 }
                  
                  console.log(`Auto-discovering links for project: ${projectId}`)
                  

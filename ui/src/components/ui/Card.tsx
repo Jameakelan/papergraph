@@ -2,7 +2,7 @@ import type { PropsWithChildren } from "react";
 
 export interface CardProps extends PropsWithChildren {
   className?: string;
-  title?: string;
+  title?: React.ReactNode;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
 }

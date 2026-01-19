@@ -1,62 +1,30 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card } from "../ui/Card";
-
-export type InboxItem = {
-  id: number;
-  subject: string;
-  body: string;
-  status: "unread" | "read" | "archived";
-  created_at: string;
-};
+import { useInboxData, type InboxItem } from "../../hooks/useInboxData";
+import { Wifi, WifiOff } from "lucide-react";
 
 export function Inbox() {
-  /* New state for selected item modal */
+  const {
+    items,
+    loading,
+    isPolling,
+    togglePolling,
+    markAsRead,
+    deleteMessage,
+  } = useInboxData();
   const [selectedItem, setSelectedItem] = useState<InboxItem | null>(null);
-  const [items, setItems] = useState<InboxItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/inbox")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch inbox");
-        return res.json();
-      })
-      .then((data) => setItems(data))
-      .catch((err) => console.error("Error loading inbox:", err))
-      .finally(() => setLoading(false));
-  }, []);
 
   const handleOpen = (item: InboxItem) => {
     setSelectedItem(item);
-    // Optimistic update: Mark as read immediately
     if (item.status === "unread") {
-      const updatedItems = items.map((i) =>
-        i.id === item.id ? { ...i, status: "read" as const } : i,
-      );
-      setItems(updatedItems);
-
-      fetch("/api/inbox", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: item.id, status: "read" }),
-      }).catch((err) => {
-        console.error("Failed to mark as read", err);
-      });
+      markAsRead(item.id);
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = (id: number) => {
     if (!confirm("Delete this message?")) return;
-
-    // Optimistic update
     setSelectedItem(null);
-    setItems((prev) => prev.filter((i) => i.id !== id));
-
-    try {
-      await fetch(`/api/inbox?id=${id}`, { method: "DELETE" });
-    } catch (e) {
-      console.error("Failed to delete", e);
-    }
+    deleteMessage(id);
   };
 
   if (loading && items.length === 0) {
@@ -67,42 +35,57 @@ export function Inbox() {
     );
   }
 
-  if (items.length === 0 && !loading) {
-    return (
-      <Card title="Inbox">
-        <div className="text-gray-400 text-sm text-center py-4">
-          No new messages.
-        </div>
-      </Card>
-    );
-  }
-
   return (
     <>
-      <Card title="Inbox">
-        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => handleOpen(item)}
-              className={`p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-all ${
-                item.status === "unread"
-                  ? "bg-[var(--color-bg-surface-hover)] border-[var(--color-primary)]/50"
-                  : "border-[var(--color-border)] opacity-70"
+      <Card
+        title={
+          <div className="flex items-center gap-2">
+            <span>Inbox</span>
+            <button
+              onClick={togglePolling}
+              className={`p-2 rounded-full transition-colors ${
+                isPolling
+                  ? "bg-green-100 text-green-600 hover:bg-green-200"
+                  : "bg-gray-100 text-gray-400 hover:bg-gray-200"
               }`}
+              title={
+                isPolling ? "Real-time updates ON" : "Real-time updates OFF"
+              }
             >
-              <div className="flex justify-between items-start mb-1">
-                <h4 className="font-semibold text-sm">{item.subject}</h4>
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  {new Date(item.created_at).toLocaleDateString()}
-                </span>
+              {isPolling ? <Wifi size={16} /> : <WifiOff size={16} />}
+            </button>
+          </div>
+        }
+      >
+        {items.length === 0 ? (
+          <div className="text-gray-400 text-sm text-center py-4">
+            No new messages.
+          </div>
+        ) : (
+          <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => handleOpen(item)}
+                className={`p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-all ${
+                  item.status === "unread"
+                    ? "bg-[var(--color-bg-surface-hover)] border-[var(--color-primary)]/50"
+                    : "border-[var(--color-border)] opacity-70"
+                }`}
+              >
+                <div className="flex justify-between items-start mb-1">
+                  <h4 className="font-semibold text-sm">{item.subject}</h4>
+                  <span className="text-xs text-[var(--color-text-muted)]">
+                    {new Date(item.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--color-text-muted)] line-clamp-2">
+                  {item.body}
+                </p>
               </div>
-              <p className="text-xs text-[var(--color-text-muted)] line-clamp-2">
-                {item.body}
-              </p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Detail Modal */}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "../ui/Button";
 import {
   Dialog,
@@ -7,13 +7,22 @@ import {
   DialogTitle,
   DialogFooter,
 } from "../ui/Dialog";
-import { Link, ArrowRight } from "lucide-react";
+import { Link, ArrowRight, Filter, X } from "lucide-react";
+import { MultiSelect } from "../ui/MultiSelect";
+import { Input } from "../ui/Input";
 
 interface BuildLinkModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
-  nodes: { id: string | number; title?: string | null }[];
+  nodes: {
+    id: string | number;
+    title?: string | null;
+    tags?: string[] | null;
+    keywords?: string[] | null;
+    authors?: string | null;
+    year?: number | string | null;
+  }[];
   onLinkCreated: () => void;
   initialSourceId?: string | number | null;
 }
@@ -33,6 +42,75 @@ export function BuildLinkModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Filter State
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
+  const [selectedAuthors, setSelectedAuthors] = useState<string[]>([]);
+  const [yearFilter, setYearFilter] = useState("");
+
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Extract unique values for filters
+  const { allTags, allKeywords, allAuthors } = useMemo(() => {
+    const tags = new Set<string>();
+    const keywords = new Set<string>();
+    const authors = new Set<string>();
+
+    nodes.forEach((node) => {
+      node.tags?.forEach((t) => tags.add(t));
+      node.keywords?.forEach((k) => keywords.add(k));
+      if (node.authors) {
+        // Handle "Last, First and Last, First" format
+        const authorList = node.authors.includes(" and ")
+          ? node.authors.split(" and ")
+          : node.authors.split(",");
+        authorList.forEach((a) => authors.add(a.trim()));
+      }
+    });
+
+    return {
+      allTags: Array.from(tags).sort(),
+      allKeywords: Array.from(keywords).sort(),
+      allAuthors: Array.from(authors).sort(),
+    };
+  }, [nodes]);
+
+  // Filter Nodes
+  const filteredNodes = useMemo(() => {
+    return nodes.filter((node) => {
+      // Tags
+      if (selectedTags.length > 0) {
+        const nodeTags = new Set(node.tags || []);
+        if (!selectedTags.some((t) => nodeTags.has(t))) return false;
+      }
+
+      // Keywords
+      if (selectedKeywords.length > 0) {
+        const nodeKeywords = new Set(node.keywords || []);
+        if (!selectedKeywords.some((k) => nodeKeywords.has(k))) return false;
+      }
+
+      // Authors
+      if (selectedAuthors.length > 0) {
+        if (!node.authors) return false;
+        if (
+          !selectedAuthors.some((a) =>
+            node.authors!.toLowerCase().includes(a.toLowerCase()),
+          )
+        )
+          return false;
+      }
+
+      // Year
+      if (yearFilter) {
+        if (!node.year) return false;
+        if (!String(node.year).includes(yearFilter)) return false;
+      }
+
+      return true;
+    });
+  }, [nodes, selectedTags, selectedKeywords, selectedAuthors, yearFilter]);
+
   // Reset form on open
   useEffect(() => {
     if (isOpen) {
@@ -41,6 +119,13 @@ export function BuildLinkModal({
       setRelationType("related");
       setNote("");
       setError(null);
+      // Don't auto-reset filters to allow persistence across multiple link creations?
+      // Or reset? Let's reset for fresh start.
+      setSelectedTags([]);
+      setSelectedKeywords([]);
+      setSelectedAuthors([]);
+      setYearFilter("");
+      setShowFilters(false);
     }
   }, [isOpen, initialSourceId]);
 
@@ -97,9 +182,22 @@ export function BuildLinkModal({
     "supports",
   ];
 
+  const clearFilters = () => {
+    setSelectedTags([]);
+    setSelectedKeywords([]);
+    setSelectedAuthors([]);
+    setYearFilter("");
+  };
+
+  const activeFilterCount =
+    selectedTags.length +
+    selectedKeywords.length +
+    selectedAuthors.length +
+    (yearFilter ? 1 : 0);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link className="w-5 h-5 text-[var(--color-primary)]" />
@@ -111,6 +209,82 @@ export function BuildLinkModal({
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-md">
               {error}
+            </div>
+          )}
+
+          {/* Filter Toggle */}
+          <div className="flex items-center justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-2 text-xs h-8"
+            >
+              <Filter className="w-3.5 h-3.5" />
+              {showFilters ? "Hide Filters" : "Filter Nodes"}
+              {activeFilterCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[var(--color-primary)] text-white text-[10px]">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+
+            {activeFilterCount > 0 && showFilters && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="gap-1 text-xs h-8 text-[var(--color-text-muted)] hover:text-red-500"
+              >
+                <X className="w-3.5 h-3.5" />
+                Clear
+              </Button>
+            )}
+          </div>
+
+          {/* Filter Area */}
+          {showFilters && (
+            <div className="p-3 bg-[var(--color-bg-surface-hover)]/50 rounded-lg border border-[var(--color-border)] space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <MultiSelect
+                  label="Tags"
+                  options={allTags}
+                  selected={selectedTags}
+                  onChange={setSelectedTags}
+                  placeholder="Filter by tags..."
+                  className="bg-[var(--color-bg-surface)]"
+                />
+                <MultiSelect
+                  label="Keywords"
+                  options={allKeywords}
+                  selected={selectedKeywords}
+                  onChange={setSelectedKeywords}
+                  placeholder="Filter by keywords..."
+                  className="bg-[var(--color-bg-surface)]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <MultiSelect
+                  label="Authors"
+                  options={allAuthors}
+                  selected={selectedAuthors}
+                  onChange={setSelectedAuthors}
+                  placeholder="Filter by authors..."
+                  className="bg-[var(--color-bg-surface)]"
+                />
+                <Input
+                  label="Year"
+                  value={yearFilter}
+                  onChange={(e) => setYearFilter(e.target.value)}
+                  placeholder="Filter by year..."
+                  className="h-9 bg-[var(--color-bg-surface)]"
+                />
+              </div>
+              <div className="text-xs text-[var(--color-text-muted)] text-right">
+                Found {filteredNodes.length} nodes
+              </div>
             </div>
           )}
 
@@ -128,7 +302,7 @@ export function BuildLinkModal({
                   placeholder="Select source..."
                 />
                 <datalist id="source-nodes">
-                  {nodes.map((n) => (
+                  {filteredNodes.map((n) => (
                     <option key={n.id} value={n.id}>
                       {n.title || n.id}
                     </option>
@@ -154,7 +328,7 @@ export function BuildLinkModal({
                   placeholder="Select target..."
                 />
                 <datalist id="target-nodes">
-                  {nodes.map((n) => (
+                  {filteredNodes.map((n) => (
                     <option key={n.id} value={n.id}>
                       {n.title || n.id}
                     </option>
