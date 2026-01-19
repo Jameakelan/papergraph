@@ -516,12 +516,25 @@ def resolve_edge_type(edge: Dict[str, object], nodes_by_id: Dict[int, Dict[str, 
     src_auth = split_authors(src.get("authors"))
     tgt_auth = split_authors(tgt.get("authors"))
 
-    if has_overlap(src_tags, tgt_tags):
+    overlap_tag = has_overlap(src_tags, tgt_tags)
+    overlap_kw = has_overlap(src_kw, tgt_kw)
+    overlap_auth = has_overlap(src_auth, tgt_auth)
+
+    if overlap_tag and not overlap_kw and not overlap_auth:
         return "related-tag"
-    if has_overlap(src_kw, tgt_kw):
+    if not overlap_tag and overlap_kw and not overlap_auth:
         return "related-keyword"
-    if has_overlap(src_auth, tgt_auth):
+    if not overlap_tag and not overlap_kw and overlap_auth:
         return "related-author"
+    if overlap_tag and overlap_kw and not overlap_auth:
+        return "related-tag-keyword"
+    if not overlap_tag and overlap_kw and overlap_auth:
+        return "related-keyword-author"
+    if overlap_tag and overlap_kw and overlap_auth:
+        return "related-tag-keyword-author"
+    if overlap_tag and not overlap_kw and overlap_auth:
+        return "related-tag-author"
+
     return base
 
 

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useGraphData } from "../../hooks/useGraphData";
 import type { PaperRow } from "../../hooks/usePaperData";
@@ -59,6 +59,47 @@ export function ProjectView() {
 
   // Dashboard Modal State
   const [isDashboardModalOpen, setIsDashboardModalOpen] = useState(false);
+
+  // Resizable Panel State
+  const [panelHeight, setPanelHeight] = useState(300); // Default height in pixels
+  const isResizing = useRef(false);
+  const containerRef = useRef<HTMLElement>(null);
+
+  // Handle resize drag
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current || !containerRef.current) return;
+
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newHeight = containerRect.bottom - e.clientY;
+
+      // Constrain between min and max heights
+      const minHeight = 150;
+      const maxHeight = window.innerHeight * 0.8; // Allow up to 80vh
+      setPanelHeight(Math.max(minHeight, Math.min(maxHeight, newHeight)));
+    };
+
+    const handleMouseUp = () => {
+      isResizing.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.body.style.cursor = "ns-resize";
+    document.body.style.userSelect = "none";
+  }, []);
 
   const handleAddPaper = useCallback(() => {
     setEditingPaper(undefined);
@@ -316,8 +357,11 @@ export function ProjectView() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <div className="flex-1 relative">
+      <main
+        ref={containerRef}
+        className="flex-1 flex flex-col h-full overflow-hidden relative"
+      >
+        <div className="flex-1 relative min-h-0">
           <GraphViewer
             nodes={filteredNodes}
             links={filteredLinks}
@@ -326,18 +370,30 @@ export function ProjectView() {
           />
         </div>
 
-        {/* Bottom Drawer / Split View for Papers Table */}
-        <div className="h-[40vh] min-h-[250px] max-h-[45vh] border-t border-[var(--color-border)] bg-[var(--color-bg-surface)] backdrop-blur-lg flex flex-col relative z-10 shadow-[-10px_-10px_30px_rgba(0,0,0,0.2)]">
-          <PaperList
-            papers={papers}
-            loading={papersLoading}
-            onSelect={handleSelectPaper}
-            onDelete={deletePaper}
-            onAdd={handleAddPaper}
-            onEdit={handleEditPaper}
-            onViewBibtex={projectId ? handleViewBibtex : undefined}
-            onViewDashboard={projectId ? handleViewDashboard : undefined}
-          />
+        {/* Resizable Bottom Drawer / Split View for Papers Table */}
+        <div
+          style={{ height: `${panelHeight}px` }}
+          className="border-t border-[var(--color-border)] bg-[var(--color-bg-surface)] backdrop-blur-lg flex flex-col relative z-10 shadow-[-10px_-10px_30px_rgba(0,0,0,0.2)]"
+        >
+          {/* Drag Handle */}
+          <div
+            onMouseDown={handleResizeStart}
+            className="absolute -top-3 left-0 right-0 h-6 cursor-ns-resize z-50 flex items-center justify-center group bg-transparent"
+          >
+            <div className="w-16 h-1 rounded-full bg-[var(--color-border)] group-hover:bg-[var(--color-primary)] transition-colors" />
+          </div>
+          <div className="pt-2 flex-1 overflow-hidden">
+            <PaperList
+              papers={papers}
+              loading={papersLoading}
+              onSelect={handleSelectPaper}
+              onDelete={deletePaper}
+              onAdd={handleAddPaper}
+              onEdit={handleEditPaper}
+              onViewBibtex={projectId ? handleViewBibtex : undefined}
+              onViewDashboard={projectId ? handleViewDashboard : undefined}
+            />
+          </div>
         </div>
       </main>
 

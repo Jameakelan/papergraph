@@ -64,5 +64,5 @@ A lightweight SQLite-backed CLI to catalog research papers, link them, export gr
 ## Notes
 
 - Graph labels include title, ids, project, year/venue, authors, keywords.
-- Edge labels are auto-resolved to `related-tag`, `related-keyword`, or `related-author` when the base type is `related` and fields overlap; otherwise the user-specified type is used.
+- Edge labels auto-resolve to `related-<reason>` when the base type is `related`; tag/keyword/author overlaps are combined (e.g., `related-tag-keyword`) and otherwise fall back to the user-specified type.
 - Graphviz (`dot`) is optional; needed only to render DOT files to images.

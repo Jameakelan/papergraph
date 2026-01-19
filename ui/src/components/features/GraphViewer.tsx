@@ -40,7 +40,7 @@ const GraphViewer = memo(
     return (
       <div
         ref={wrapperRef}
-        className="w-full h-full min-h-[500px] bg-[var(--color-bg-app)] rounded-xl overflow-hidden shadow-inner border border-[var(--color-border)]"
+        className="w-full h-full min-h-0 bg-[var(--color-bg-app)] rounded-xl overflow-hidden shadow-inner border border-[var(--color-border)]"
       >
         <ForceGraph2D
           ref={fgRef}
