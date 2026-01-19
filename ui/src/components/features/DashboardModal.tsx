@@ -2,6 +2,14 @@ import { Dialog, DialogContent } from "../ui/Dialog";
 import type { PaperRow } from "../../hooks/usePaperData";
 import { PaperYearChart } from "./PaperYearChart";
 import { useMemo } from "react";
+import {
+  KeywordAnalysisChart,
+  TagsAnalysisChart,
+  AuthorAnalysisChart,
+  VenueAnalysisChart,
+  SourceAnalysisChart,
+  StatusDistributionChart,
+} from "./DashboardCharts";
 
 interface DashboardModalProps {
   isOpen: boolean;
@@ -48,12 +56,13 @@ export function DashboardModal({
       recentPapers,
     };
   }, [papers]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh] p-0 overflow-hidden">
-        <div className="h-full flex flex-col bg-[var(--color-bg-app)]">
+      <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh] p-0 overflow-hidden flex flex-col">
+        <div className="h-full flex flex-col bg-[var(--color-bg-app)] min-h-0">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-[var(--color-border)] bg-[var(--color-bg-surface)]">
+          <div className="flex items-center justify-between p-6 border-b border-[var(--color-border)] bg-[var(--color-bg-surface)] shrink-0">
             <div>
               <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
                 Dashboard
@@ -65,7 +74,7 @@ export function DashboardModal({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6 min-h-0">
             <div className="grid grid-cols-3 gap-6">
               {/* Statistics Cards */}
               <div className="bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl p-6">
@@ -161,8 +170,55 @@ export function DashboardModal({
               </div>
 
               {/* Papers by Year Chart - Spans all 3 columns */}
-              <div className="col-span-3">
+              <div className="col-span-3 bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">
+                  Publication Timeline
+                </h3>
                 <PaperYearChart papers={papers} />
+              </div>
+
+              {/* Status & Source - 2 Columns */}
+              <div className="col-span-1 bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">
+                  Paper Status
+                </h3>
+                <StatusDistributionChart papers={papers} />
+              </div>
+              <div className="col-span-2 bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">
+                  Source Database
+                </h3>
+                <SourceAnalysisChart papers={papers} />
+              </div>
+
+              {/* Keyword Analysis - Full Width */}
+              <div className="col-span-3 bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">
+                  Top Keywords
+                </h3>
+                <KeywordAnalysisChart papers={papers} />
+              </div>
+
+              {/* Author & Venue - 2/1 Split */}
+              <div className="col-span-2 bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">
+                  Top Authors
+                </h3>
+                <AuthorAnalysisChart papers={papers} />
+              </div>
+              <div className="col-span-1 bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">
+                  Top Venues
+                </h3>
+                <VenueAnalysisChart papers={papers} />
+              </div>
+
+              {/* Tags - Full Width */}
+              <div className="col-span-3 bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">
+                  Top Tags
+                </h3>
+                <TagsAnalysisChart papers={papers} />
               </div>
             </div>
           </div>

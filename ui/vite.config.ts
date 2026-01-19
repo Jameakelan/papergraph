@@ -130,6 +130,8 @@ function serveProjectsApi(): Plugin {
             return
           }
 
+
+
           // POST /api/projects/build
           if (req.method === 'POST' && req.url === '/build') {
              let body = ''
@@ -236,6 +238,22 @@ function serveProjectsApi(): Plugin {
                db.close()
                return
              }
+
+             // Cascading delete: Risk Assessments -> Relationships -> Papers -> Project
+             try {
+                // Delete risk assessments for papers in this project
+                db.prepare('DELETE FROM risk_assessments WHERE paper_id IN (SELECT id FROM papers WHERE project_id = ?)').run(id)
+                
+                // Delete relationships where source or target is a paper in this project
+                db.prepare('DELETE FROM relationships WHERE source_id IN (SELECT id FROM papers WHERE project_id = ?) OR target_id IN (SELECT id FROM papers WHERE project_id = ?)').run(id, id)
+                
+                // Delete papers in this project
+                db.prepare('DELETE FROM papers WHERE project_id = ?').run(id)
+             } catch (err: any) {
+                console.error(`Error performing cascading delete: ${err.message}`)
+                // We continue to delete the project even if cascading fails (though it shouldn't)
+             }
+
              const stmt = db.prepare('DELETE FROM projects WHERE id = ?')
              stmt.run(id)
 
@@ -409,6 +427,140 @@ function serveProjectsApi(): Plugin {
   }
 }
 
+const serveNotesApi = (): Plugin => {
+  const dbPath = path.resolve(__dirname, '../library/db/papers.db')
+
+  return {
+    name: 'serve-notes-api',
+    configureServer(server) {
+      server.middlewares.use('/api/notes', async (req: any, res: any, next: any) => {
+        if (!fs.existsSync(dbPath)) {
+          res.statusCode = 404
+          res.end(JSON.stringify({ error: 'Database not found' }))
+          return
+        }
+
+        try {
+          const db = new Database(dbPath)
+
+          // GET /api/notes?paperId=...
+          if (req.method === 'GET') {
+            const url = new URL(req.url!, `http://${req.headers.host}`)
+            const paperId = url.searchParams.get('paperId')
+
+            if (!paperId) {
+                res.statusCode = 400
+                res.end(JSON.stringify({ error: 'Missing paperId' }))
+                db.close()
+                return
+            }
+
+            const stmt = db.prepare('SELECT * FROM paper_notes WHERE paper_id = ? ORDER BY created_at DESC')
+            const notes = stmt.all(paperId)
+            
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify(notes))
+            db.close()
+            return
+          }
+
+          // POST /api/notes (Create)
+          if (req.method === 'POST') {
+             let body = ''
+             req.on('data', (chunk: any) => { body += chunk })
+             req.on('end', () => {
+                try {
+                    const data = JSON.parse(body)
+                    const { paperId, content } = data
+                    
+                    if (!paperId || !content) {
+                        res.statusCode = 400
+                        res.end(JSON.stringify({ error: 'Missing paperId or content' }))
+                        return
+                    }
+
+                    const stmt = db.prepare('INSERT INTO paper_notes (paper_id, content) VALUES (?, ?)')
+                    const info = stmt.run(paperId, content)
+                    
+                    res.statusCode = 201
+                    res.end(JSON.stringify({ success: true, id: info.lastInsertRowid, created_at: new Date().toISOString() }))
+                } catch(e: any) {
+                    res.statusCode = 500
+                    res.end(JSON.stringify({ error: e.message }))
+                } finally {
+                    db.close()
+                }
+             })
+             return
+          }
+
+          // PUT /api/notes (Update)
+          if (req.method === 'PUT') {
+             let body = ''
+             req.on('data', (chunk: any) => { body += chunk })
+             req.on('end', () => {
+                try {
+                    const data = JSON.parse(body)
+                    const { id, content } = data
+                    
+                    if (!id || !content) {
+                        res.statusCode = 400
+                        res.end(JSON.stringify({ error: 'Missing id or content' }))
+                        return
+                    }
+
+                    const stmt = db.prepare('UPDATE paper_notes SET content = ?, updated_at = datetime("now") WHERE id = ?')
+                    stmt.run(content, id)
+                    
+                    res.statusCode = 200
+                    res.end(JSON.stringify({ success: true }))
+                } catch(e: any) {
+                    res.statusCode = 500
+                    res.end(JSON.stringify({ error: e.message }))
+                } finally {
+                    db.close()
+                }
+             })
+             return
+          }
+          
+          // DELETE /api/notes (Delete single or all)
+          if (req.method === 'DELETE') {
+             const url = new URL(req.url!, `http://${req.headers.host}`)
+             const id = url.searchParams.get('id')
+             const paperId = url.searchParams.get('paperId') // If provided, delete all for paper
+
+             if (id) {
+                 const stmt = db.prepare('DELETE FROM paper_notes WHERE id = ?')
+                 stmt.run(id)
+             } else if (paperId) {
+                 const stmt = db.prepare('DELETE FROM paper_notes WHERE paper_id = ?')
+                 stmt.run(paperId)
+             } else {
+                 res.statusCode = 400
+                 res.end(JSON.stringify({ error: 'Missing id or paperId' }))
+                 db.close()
+                 return
+             }
+             
+             res.statusCode = 200
+             res.end(JSON.stringify({ success: true }))
+             db.close()
+             return
+          }
+
+          db.close()
+          next()
+         } catch(e: any) {
+            console.error(e)
+            res.statusCode = 500
+            res.end(JSON.stringify({ error: e.message }))
+         }
+      })
+    }
+  }
+}
+
 function servePapersApi(): Plugin {
   const dbPath = path.resolve(__dirname, '../library/db/papers.db')
 
@@ -521,11 +673,12 @@ function servePapersApi(): Plugin {
                    return
                  }
 
-                 const keys = [
-                   'paper_id', 'project_id', 'title', 'abstract', 'keywords', 'year', 'venue', 'authors', 
-                   'doi', 'url', 'tags', 'relevance', 'dataset_used', 'methods', 'metrics', 'gap', 
-                   'limitations', 'future_work', 'summary', 'notes', 'extra', 'bibtex', 'file_path', 'added_at'
-                 ]
+                  const keys = [
+                    'paper_id', 'project_id', 'title', 'abstract', 'keywords', 'year', 'venue', 'authors', 
+                    'doi', 'url', 'database', 'is_duplicated', 'duplicate_reason', 'is_excluded', 'excluded_reason', 'tags', 'relevance', 'dataset_used', 'methods', 'metrics', 'gap', 
+                    'limitations', 'future_work', 'summary', 'notes', 'extra', 'bibtex', 'file_path', 'added_at'
+                  ]
+
                  
                  const validData: any = {}
                  keys.forEach(k => {
@@ -586,11 +739,12 @@ function servePapersApi(): Plugin {
                   }
 
                   // Filter updates to allowed columns only to avoid errors
-                 const allowed = [
-                   'paper_id', 'project_id', 'title', 'abstract', 'keywords', 'year', 'venue', 'authors', 
-                   'doi', 'url', 'tags', 'relevance', 'dataset_used', 'methods', 'metrics', 'gap', 
-                   'limitations', 'future_work', 'summary', 'notes', 'extra', 'bibtex', 'file_path'
-                 ];
+                  const allowed = [
+                    'paper_id', 'project_id', 'title', 'abstract', 'keywords', 'year', 'venue', 'authors', 
+                    'doi', 'url', 'database', 'is_duplicated', 'duplicate_reason', 'is_excluded', 'excluded_reason', 'tags', 'relevance', 'dataset_used', 'methods', 'metrics', 'gap', 
+                    'limitations', 'future_work', 'summary', 'notes', 'extra', 'bibtex', 'file_path'
+                  ];
+
                  const validUpdates: any = {};
                  Object.keys(updates).forEach(k => {
                    if (allowed.includes(k)) validUpdates[k] = updates[k];
@@ -651,9 +805,93 @@ function servePapersApi(): Plugin {
   }
 }
 
+function serveInboxApi(): Plugin {
+  const dbPath = path.resolve(__dirname, '../library/db/papers.db')
+
+  return {
+    name: 'serve-inbox-api',
+    configureServer(server) {
+      server.middlewares.use('/api/inbox', async (req: any, res: any, next: any) => {
+        if (!fs.existsSync(dbPath)) {
+          console.error("Database not found at", dbPath)
+          res.statusCode = 404
+          res.end(JSON.stringify({ error: 'Database not found' }))
+          return
+        }
+
+        try {
+          const db = new Database(dbPath)
+
+          // GET /api/inbox
+          // Since we mounted at /api/inbox, req.url will be relative to that, i.e., '/'
+          if (req.method === 'GET' && (req.url === '/' || req.url === '' || req.url.startsWith('/?'))) {
+             const stmt = db.prepare('SELECT * FROM inbox ORDER BY created_at DESC')
+             const messages = stmt.all()
+             res.setHeader('Content-Type', 'application/json')
+             res.end(JSON.stringify(messages))
+             db.close()
+             return
+          }
+
+          // PUT /api/inbox (Mark as read/unread)
+          if (req.method === 'PUT') {
+            let body = ''
+            req.on('data', (chunk: any) => { body += chunk })
+            req.on('end', () => {
+              try {
+                const { id, status } = JSON.parse(body)
+                if (!id || !status) {
+                  res.statusCode = 400
+                  res.end(JSON.stringify({ error: 'Missing id or status' }))
+                  db.close()
+                  return
+                }
+                const stmt = db.prepare('UPDATE inbox SET status = ? WHERE id = ?')
+                stmt.run(status, id)
+                res.end(JSON.stringify({ success: true }))
+              } catch (e: any) {
+                res.statusCode = 500
+                res.end(JSON.stringify({ error: e.message }))
+              } finally {
+                db.close()
+              }
+            })
+            return
+          }
+
+          // DELETE /api/inbox?id=...
+          if (req.method === 'DELETE') {
+            const url = new URL(req.url!, `http://${req.headers.host}`)
+            const id = url.searchParams.get('id')
+             if (!id) {
+               res.statusCode = 400
+               res.end(JSON.stringify({ error: 'Missing id param' }))
+               db.close()
+               return
+             }
+             const stmt = db.prepare('DELETE FROM inbox WHERE id = ?')
+             stmt.run(id)
+             res.end(JSON.stringify({ success: true }))
+             db.close()
+             return
+          }
+
+          db.close()
+          next()
+        } catch (error: any) {
+          console.error('API Error:', error)
+          res.statusCode = 500
+          res.end(JSON.stringify({ error: error.message }))
+        }
+      })
+    }
+  }
+}
+
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), serveLibraryDb(), serveLibraryGraph(), serveProjectsApi(), servePapersApi()],
+  plugins: [react(), serveLibraryDb(), serveLibraryGraph(), serveProjectsApi(), servePapersApi(), serveInboxApi(), serveNotesApi()],
   resolve: {
     alias: {
       aframe: path.resolve(__dirname, 'src/shims/aframe.ts'),

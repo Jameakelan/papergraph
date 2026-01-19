@@ -13,6 +13,7 @@ import { EditPaperModal } from "../features/EditPaperModal";
 import { BibtexViewerModal } from "../features/BibtexViewerModal";
 import { BuildLinkModal } from "../features/BuildLinkModal";
 import { DashboardModal } from "../features/DashboardModal";
+import { PreviewPaperModal } from "../features/PreviewPaperModal";
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -59,6 +60,12 @@ export function ProjectView() {
 
   // Dashboard Modal State
   const [isDashboardModalOpen, setIsDashboardModalOpen] = useState(false);
+
+  // Preview Modal State
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [previewPaper, setPreviewPaper] = useState<PaperRow | undefined>(
+    undefined,
+  );
 
   // Resizable Panel State
   const [panelHeight, setPanelHeight] = useState(300); // Default height in pixels
@@ -109,6 +116,11 @@ export function ProjectView() {
   const handleEditPaper = useCallback((paper: PaperRow) => {
     setEditingPaper(paper);
     setIsEditModalOpen(true);
+  }, []);
+
+  const handlePreviewPaper = useCallback((paper: PaperRow) => {
+    setPreviewPaper(paper);
+    setIsPreviewModalOpen(true);
   }, []);
 
   const handleViewBibtex = useCallback(() => {
@@ -390,6 +402,7 @@ export function ProjectView() {
               onDelete={deletePaper}
               onAdd={handleAddPaper}
               onEdit={handleEditPaper}
+              onPreview={handlePreviewPaper}
               onViewBibtex={projectId ? handleViewBibtex : undefined}
               onViewDashboard={projectId ? handleViewDashboard : undefined}
             />
@@ -438,6 +451,14 @@ export function ProjectView() {
           onClose={() => setIsDashboardModalOpen(false)}
           projectId={projectId}
           papers={papers}
+        />
+      )}
+
+      {isPreviewModalOpen && previewPaper && (
+        <PreviewPaperModal
+          isOpen={isPreviewModalOpen}
+          onClose={() => setIsPreviewModalOpen(false)}
+          paper={previewPaper}
         />
       )}
     </div>

@@ -13,6 +13,11 @@ export type PaperRow = {
   authors?: string | null
   doi?: string | null
   url?: string | null
+  database?: string | null
+  is_duplicated?: number | null
+  duplicate_reason?: string | null
+  is_excluded?: number | null
+  excluded_reason?: string | null
   tags?: string | null
   relevance?: string | null
   dataset_used?: string | null

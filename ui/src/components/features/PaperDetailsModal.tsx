@@ -58,6 +58,109 @@ export function PaperDetailsModal({
               {paper.venue}
             </span>
           )}
+          {paper.database && (
+            <span className="flex items-center gap-1.5 bg-[var(--color-bg-surface-hover)] px-2.5 py-1 rounded-full">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5" />
+                <path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3" />
+              </svg>
+              {paper.database}
+            </span>
+          )}
+          {paper.is_duplicated !== undefined && paper.is_duplicated !== null && (
+            <span className="flex items-center gap-1.5 bg-[var(--color-bg-surface-hover)] px-2.5 py-1 rounded-full">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Duplicate: {paper.is_duplicated ? "Yes" : "No"}
+            </span>
+          )}
+          {paper.duplicate_reason && (
+            <span className="flex items-center gap-1.5 bg-[var(--color-bg-surface-hover)] px-2.5 py-1 rounded-full">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 20h9" />
+                <path d="M12 4h9" />
+                <path d="M12 12h9" />
+                <path d="M3 17h.01" />
+                <path d="M3 7h.01" />
+                <path d="M3 12h.01" />
+              </svg>
+              {paper.duplicate_reason}
+            </span>
+          )}
+          {paper.is_excluded !== undefined && paper.is_excluded !== null && (
+            <span className="flex items-center gap-1.5 bg-[var(--color-bg-surface-hover)] px-2.5 py-1 rounded-full">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" x2="6" y1="6" y2="18" />
+                <line x1="6" x2="18" y1="6" y2="18" />
+              </svg>
+              Excluded: {paper.is_excluded ? "Yes" : "No"}
+            </span>
+          )}
+          {paper.excluded_reason && (
+            <span className="flex items-center gap-1.5 bg-[var(--color-bg-surface-hover)] px-2.5 py-1 rounded-full">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 20h9" />
+                <path d="M12 4h9" />
+                <path d="M12 12h9" />
+                <path d="M3 17h.01" />
+                <path d="M3 7h.01" />
+                <path d="M3 12h.01" />
+              </svg>
+              {paper.excluded_reason}
+            </span>
+          )}
         </div>
 
         <div>

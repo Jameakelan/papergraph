@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import {
@@ -16,6 +17,74 @@ interface EditPaperModalProps {
   onClose: () => void;
   paper?: PaperRow;
   onSave: (paper: Partial<PaperRow>) => Promise<void>;
+}
+
+interface TagInputProps {
+  value: string | null | undefined;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+
+function TagInput({ value, onChange, placeholder }: TagInputProps) {
+  const [inputValue, setInputValue] = useState("");
+
+  const tags = value
+    ? value
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : [];
+
+  const addTag = (tag: string) => {
+    const trimmed = tag.trim();
+    if (trimmed && !tags.includes(trimmed)) {
+      onChange([...tags, trimmed].join(", "));
+    }
+    setInputValue("");
+  };
+
+  const removeTag = (indexToRemove: number) => {
+    const newTags = tags.filter((_, index) => index !== indexToRemove);
+    onChange(newTags.join(", "));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(inputValue);
+    } else if (e.key === "Backspace" && !inputValue && tags.length > 0) {
+      removeTag(tags.length - 1);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-transparent focus-within:ring-1 focus-within:ring-ring focus-within:border-primary min-h-[40px]">
+      {tags.map((tag, index) => (
+        <span
+          key={index}
+          className="flex items-center gap-1 px-2 py-0.5 bg-[var(--color-bg-surface-active)] text-xs rounded border border-[var(--color-border)]"
+        >
+          {tag}
+          <button
+            type="button"
+            onClick={() => removeTag(index)}
+            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-main)]"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        type="text"
+        className="flex-1 bg-transparent border-0 outline-none text-sm min-w-[120px]"
+        placeholder={tags.length === 0 ? placeholder : ""}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={() => addTag(inputValue)}
+      />
+    </div>
+  );
 }
 
 export function EditPaperModal({
@@ -45,10 +114,69 @@ export function EditPaperModal({
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
+  const parseBibtex = (bibtex: string) => {
+    const newData: Partial<PaperRow> = {};
+
+    // Helper to get value between braces or quotes
+    const extract = (key: string) => {
+      // Matches key = {value} or key = "value" or key = value, case insensitive key
+      // Supports multi-line values
+      const regex = new RegExp(
+        `${key}\\s*=\\s*[{"']?((?:.|\\n)*?)[}"']?\\s*(?:,|\\n|$)`,
+        "i",
+      );
+      const match = bibtex.match(regex);
+      if (match && match[1]) {
+        // Clean up excessive whitespace/newlines
+        return match[1].replace(/\\s+/g, " ").trim();
+      }
+      return null;
+    };
+
+    const title = extract("title");
+    if (title) newData.title = title;
+
+    const abstract = extract("abstract");
+    if (abstract) newData.abstract = abstract;
+
+    const author = extract("author");
+    if (author) newData.authors = author;
+
+    const year = extract("year");
+    if (year) newData.year = parseInt(year) || undefined;
+
+    const keywords = extract("keywords");
+    if (keywords) newData.keywords = keywords;
+
+    const doi = extract("doi");
+    if (doi) newData.doi = doi;
+
+    const journal = extract("journal");
+    const booktitle = extract("booktitle");
+    const venue = journal || booktitle;
+    if (venue) newData.venue = venue;
+
+    const url = extract("url");
+    if (url) newData.url = url;
+
+    return newData;
+  };
+
   const handleBibtexChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setBibtex(e.target.value);
-    // TODO: Client-side parsing if we wanted immediate feedback,
-    // but we'll rely on backend parsing or user switching tabs.
+    const val = e.target.value;
+    setBibtex(val);
+
+    if (val.trim()) {
+      const parsed = parseBibtex(val);
+      if (Object.keys(parsed).length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          ...parsed,
+          // Don't overwrite if not found in BibTeX, or maybe we should?
+          // For now, let's just merge what we found.
+        }));
+      }
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,6 +293,74 @@ export function EditPaperModal({
                       onChange={(e) => handleChange("url", e.target.value)}
                     />
                   </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">
+                      Source Database
+                    </label>
+                    <Input
+                      value={formData.database || ""}
+                      onChange={(e) => handleChange("database", e.target.value)}
+                      placeholder="e.g. Scopus, Google Scholar"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Duplicate?</label>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors"
+                      value={formData.is_duplicated ?? ""}
+                      onChange={(e) =>
+                        handleChange(
+                          "is_duplicated",
+                          e.target.value === "" ? null : Number(e.target.value),
+                        )
+                      }
+                    >
+                      <option value="">Unknown</option>
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">
+                      Duplicate Reason
+                    </label>
+                    <Input
+                      value={formData.duplicate_reason || ""}
+                      onChange={(e) =>
+                        handleChange("duplicate_reason", e.target.value)
+                      }
+                      placeholder="e.g. same DOI"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Excluded?</label>
+                    <select
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors"
+                      value={formData.is_excluded ?? ""}
+                      onChange={(e) =>
+                        handleChange(
+                          "is_excluded",
+                          e.target.value === "" ? null : Number(e.target.value),
+                        )
+                      }
+                    >
+                      <option value="">Unknown</option>
+                      <option value="1">Yes</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">
+                      Excluded Reason
+                    </label>
+                    <Input
+                      value={formData.excluded_reason || ""}
+                      onChange={(e) =>
+                        handleChange("excluded_reason", e.target.value)
+                      }
+                      placeholder="e.g. out of scope"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -191,18 +387,18 @@ export function EditPaperModal({
                   </div>
                   <div className="col-span-3 lg:col-span-1 space-y-1">
                     <label className="text-xs font-medium">Tags</label>
-                    <Input
+                    <TagInput
                       value={formData.tags || ""}
-                      onChange={(e) => handleChange("tags", e.target.value)}
-                      placeholder="comma, separated"
+                      onChange={(val) => handleChange("tags", val)}
+                      placeholder="Add tag..."
                     />
                   </div>
                   <div className="col-span-3 lg:col-span-1 space-y-1">
                     <label className="text-xs font-medium">Keywords</label>
-                    <Input
+                    <TagInput
                       value={formData.keywords || ""}
-                      onChange={(e) => handleChange("keywords", e.target.value)}
-                      placeholder="comma, separated"
+                      onChange={(val) => handleChange("keywords", val)}
+                      placeholder="Add keyword..."
                     />
                   </div>
                 </div>
@@ -229,41 +425,36 @@ export function EditPaperModal({
                     onChange={(e) => handleChange("summary", e.target.value)}
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Notes</label>
-                  <textarea
-                    className="w-full h-16 p-2 text-xs border rounded-md bg-transparent"
-                    value={formData.notes || ""}
-                    onChange={(e) => handleChange("notes", e.target.value)}
-                  />
-                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-medium">Methods</label>
-                    <Input
+                    <TagInput
                       value={formData.methods || ""}
-                      onChange={(e) => handleChange("methods", e.target.value)}
+                      onChange={(val) => handleChange("methods", val)}
+                      placeholder="Add method..."
                     />
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium">Datasets Used</label>
-                    <Input
+                    <TagInput
                       value={formData.dataset_used || ""}
-                      onChange={(e) =>
-                        handleChange("dataset_used", e.target.value)
-                      }
+                      onChange={(val) => handleChange("dataset_used", val)}
+                      placeholder="Add dataset..."
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Gap</label>
-                    <Input
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-xs font-medium">Research Gap</label>
+                    <textarea
+                      className="w-full h-16 p-2 text-xs border rounded-md bg-transparent"
                       value={formData.gap || ""}
                       onChange={(e) => handleChange("gap", e.target.value)}
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="col-span-2 space-y-1">
                     <label className="text-xs font-medium">Future Work</label>
-                    <Input
+                    <textarea
+                      className="w-full h-16 p-2 text-xs border rounded-md bg-transparent"
                       value={formData.future_work || ""}
                       onChange={(e) =>
                         handleChange("future_work", e.target.value)

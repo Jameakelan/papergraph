@@ -12,6 +12,7 @@ interface PaperListProps {
   onDelete?: (id: number) => void;
   onAdd?: () => void;
   onEdit?: (paper: PaperRow) => void;
+  onPreview?: (paper: PaperRow) => void;
   onViewBibtex?: () => void;
   onViewDashboard?: () => void;
 }
@@ -23,6 +24,7 @@ export function PaperList({
   onDelete,
   onAdd,
   onEdit,
+  onPreview,
   onViewBibtex,
   onViewDashboard,
 }: PaperListProps) {
@@ -35,7 +37,10 @@ export function PaperList({
       (p) =>
         p.title.toLowerCase().includes(q) ||
         p.authors?.toLowerCase().includes(q) ||
-        p.venue?.toLowerCase().includes(q),
+        p.venue?.toLowerCase().includes(q) ||
+        p.database?.toLowerCase().includes(q) ||
+        p.duplicate_reason?.toLowerCase().includes(q) ||
+        p.excluded_reason?.toLowerCase().includes(q),
     );
   }, [papers, search]);
 
@@ -104,9 +109,18 @@ export function PaperList({
                   Venue
                 </th>
                 <th className="p-3 font-semibold text-[var(--color-text-subtle)]">
+                  Database
+                </th>
+                <th className="p-3 font-semibold text-[var(--color-text-subtle)]">
+                  Duplicate
+                </th>
+                <th className="p-3 font-semibold text-[var(--color-text-subtle)]">
+                  Excluded
+                </th>
+                <th className="p-3 font-semibold text-[var(--color-text-subtle)]">
                   Tags
                 </th>
-                {(onDelete || onEdit) && (
+                {(onDelete || onEdit || onPreview) && (
                   <th className="p-3 font-semibold text-[var(--color-text-subtle)] w-16 text-right">
                     Actions
                   </th>
@@ -132,6 +146,23 @@ export function PaperList({
                   <td className="p-3 text-[var(--color-text-muted)]">
                     {paper.venue}
                   </td>
+                  <td className="p-3 text-[var(--color-text-muted)]">
+                    {paper.database || ""}
+                  </td>
+                  <td className="p-3 text-[var(--color-text-muted)]">
+                    {paper.is_duplicated === 1
+                      ? "Yes"
+                      : paper.is_duplicated === 0
+                        ? "No"
+                        : ""}
+                  </td>
+                  <td className="p-3 text-[var(--color-text-muted)]">
+                    {paper.is_excluded === 1
+                      ? "Yes"
+                      : paper.is_excluded === 0
+                        ? "No"
+                        : ""}
+                  </td>
                   <td className="p-3">
                     <div className="flex gap-1 flex-wrap">
                       {(paper.tags?.split(",") || []).slice(0, 3).map((t) => (
@@ -144,9 +175,34 @@ export function PaperList({
                       ))}
                     </div>
                   </td>
-                  {(onDelete || onEdit) && (
+                  {(onDelete || onEdit || onPreview) && (
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-1">
+                        {onPreview && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPreview(paper);
+                            }}
+                            className="p-1.5 hover:bg-[var(--color-bg-surface-active)] text-[var(--color-text-muted)] rounded transition-colors"
+                            title="Preview paper"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          </button>
+                        )}
                         {onEdit && (
                           <button
                             onClick={(e) => {

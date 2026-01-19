@@ -52,6 +52,15 @@ def init_db(conn: sqlite3.Connection) -> None:
             authors TEXT,
             doi TEXT UNIQUE,
             url TEXT,
+            database TEXT,
+            revrieved_sought TEXT,
+            sought_not_revrieved TEXT,
+            is_duplicated INTEGER DEFAULT 0,
+            duplicate_reason TEXT,
+            is_excluded INTEGER DEFAULT 0,
+            excluded_reason TEXT,
+            is_included INTEGER DEFAULT 1,
+            included_reason TEXT,
             tags TEXT,
             relevance TEXT,
             dataset_used TEXT,
@@ -61,7 +70,7 @@ def init_db(conn: sqlite3.Connection) -> None:
             limitations TEXT,
             future_work TEXT,
             summary TEXT,
-            notes TEXT,
+            evaluation TEXT,
             extra TEXT,
             bibtex TEXT,
             added_at TEXT DEFAULT (datetime('now')),
@@ -78,13 +87,59 @@ def init_db(conn: sqlite3.Connection) -> None:
             FOREIGN KEY(source_id) REFERENCES papers(id) ON DELETE CASCADE,
             FOREIGN KEY(target_id) REFERENCES papers(id) ON DELETE CASCADE,
             UNIQUE(source_id, target_id, relation_type)
+            FOREIGN KEY(target_id) REFERENCES papers(id) ON DELETE CASCADE,
+            UNIQUE(source_id, target_id, relation_type)
         );
 
-        CREATE INDEX IF NOT EXISTS idx_papers_title ON papers(title);
-        CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_id);
-        CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_id);
-        """
-    )
+        CREATE TABLE IF NOT EXISTS paper_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            paper_id INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY(paper_id) REFERENCES papers(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS risk_assessments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            paper_id INTEGER NOT NULL,
+            assessor TEXT,
+            domain1 TEXT,
+            domain2 TEXT,
+            domain3 TEXT,
+            domain4 TEXT,
+            domain5 TEXT,
+            overall_bias TEXT,
+            support TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY(paper_id) REFERENCES papers(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS inbox (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subject TEXT,
+            body TEXT,
+            status TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            paper_id INTEGER NOT NULL,
+            content TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY(paper_id) REFERENCES papers(id) ON DELETE CASCADE
+        );
+
+         CREATE INDEX IF NOT EXISTS idx_papers_title ON papers(title);
+         CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_id);
+         CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_id);
+         CREATE INDEX IF NOT EXISTS idx_risk_assessments_paper_id ON risk_assessments(paper_id);
+         CREATE INDEX IF NOT EXISTS idx_inbox_status ON inbox(status);
+         CREATE INDEX IF NOT EXISTS idx_notes_paper_id ON notes(paper_id);
+         """
+     )
+
 
     ensure_columns(
         conn,
@@ -102,8 +157,17 @@ def init_db(conn: sqlite3.Connection) -> None:
             "limitations": "TEXT",
             "future_work": "TEXT",
             "summary": "TEXT",
-            "notes": "TEXT",
+            "evaluation": "TEXT",
             "extra": "TEXT",
+            "database": "TEXT",
+            "revrieved_sought": "TEXT",
+            "sought_not_revrieved": "TEXT",
+            "is_duplicated": "INTEGER DEFAULT 0",
+            "duplicate_reason": "TEXT",
+            "is_excluded": "INTEGER DEFAULT 0",
+            "excluded_reason": "TEXT",
+            "is_included": "INTEGER DEFAULT 1",
+            "included_reason": "TEXT",
             "bibtex": "TEXT",
             "file_path": "TEXT",
             "fulltext": "TEXT",
@@ -251,11 +315,13 @@ def insert_paper(
     cur.execute(
         """
         INSERT INTO papers (
-            paper_id, project_id, title, abstract, keywords, year, venue, authors, doi, url, tags,
-            relevance, dataset_used, methods, metrics, gap, limitations, future_work, summary, notes, extra,
+            paper_id, project_id, title, abstract, keywords, year, venue, authors, doi, url, database,
+            revrieved_sought, sought_not_revrieved,
+            is_duplicated, duplicate_reason, is_excluded, excluded_reason, is_included, included_reason, tags,
+            relevance, dataset_used, methods, metrics, gap, limitations, future_work, summary, evaluation, extra,
             bibtex, file_path, fulltext
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             args.paper_id,
@@ -268,6 +334,15 @@ def insert_paper(
             args.authors,
             args.doi,
             args.url,
+            args.database,
+            args.revrieved_sought,
+            args.sought_not_revrieved,
+            int(bool(args.is_duplicated)) if args.is_duplicated is not None else None,
+            args.duplicate_reason,
+            int(bool(args.is_excluded)) if args.is_excluded is not None else None,
+            args.excluded_reason,
+            int(bool(args.is_included)) if args.is_included is not None else None,
+            args.included_reason,
             ", ".join(tags) if tags else None,
             args.relevance,
             args.dataset_used,
@@ -277,15 +352,20 @@ def insert_paper(
             args.limitations,
             args.future_work,
             args.summary,
-            args.notes,
+            args.evaluation,
             args.extra,
             args.bibtex,
             file_path,
             fulltext,
         ),
     )
-    conn.commit()
     paper_id = cur.lastrowid
+    if getattr(args, "notes", None):
+        cur.execute(
+            "INSERT INTO notes (paper_id, content) VALUES (?, ?)",
+            (paper_id, args.notes),
+        )
+    conn.commit()
     print(f"Added paper #{paper_id}: {args.title}")
     return int(paper_id)
 
@@ -358,7 +438,7 @@ def cmd_list(args: argparse.Namespace) -> None:
         clauses.append("keywords LIKE ?")
         params.append(f"%{args.keyword}%")
 
-    sql = "SELECT id, paper_id, project_id, title, year, venue, doi, keywords, tags, relevance, dataset_used, methods, file_path, bibtex FROM papers"
+    sql = "SELECT id, paper_id, project_id, title, year, venue, doi, database, revrieved_sought, sought_not_revrieved, evaluation, is_duplicated, duplicate_reason, is_excluded, excluded_reason, is_included, included_reason, keywords, tags, relevance, dataset_used, methods, file_path, bibtex FROM papers"
     if clauses:
         sql += " WHERE " + " AND ".join(clauses)
     sql += " ORDER BY added_at DESC"
@@ -389,6 +469,20 @@ def cmd_list(args: argparse.Namespace) -> None:
             print(f"     project_id: {row['project_id']}")
         if row["doi"]:
             print(f"     DOI: {row['doi']}")
+        if row["database"]:
+            print(f"     Database: {row['database']}")
+        if row["revrieved_sought"]:
+            print(f"     Retrieved/Sought: {row['revrieved_sought']}")
+        if row["sought_not_revrieved"]:
+            print(f"     Sought not Retrieved: {row['sought_not_revrieved']}")
+        if "evaluation" in row.keys() and row["evaluation"]:
+            print(f"     Evaluation: {row['evaluation']}")
+        if row["is_duplicated"]:
+            print(f"     Duplicate: yes" + (f" ({row['duplicate_reason']})" if row['duplicate_reason'] else ""))
+        if row["is_excluded"]:
+            print(f"     Excluded: yes" + (f" ({row['excluded_reason']})" if row['excluded_reason'] else ""))
+        if row["is_included"] is not None:
+            print(f"     Included: {'yes' if row['is_included'] else 'no'}" + (f" ({row['included_reason']})" if row['included_reason'] else ""))
         if keyword_str:
             print(f"     Keywords: {keyword_str}")
         if tag_str:
@@ -437,7 +531,9 @@ def rows_to_graph(
 ) -> Dict[str, List[Dict[str, object]]]:
     papers = conn.execute(
         """
-        SELECT id, paper_id, project_id, title, abstract, keywords, year, venue, authors, doi, url, tags, relevance,
+        SELECT id, paper_id, project_id, title, abstract, keywords, year, venue, authors, doi, url, database,
+               revrieved_sought, sought_not_revrieved, evaluation,
+               is_duplicated, duplicate_reason, is_excluded, excluded_reason, is_included, included_reason, tags, relevance,
                dataset_used, methods, metrics, limitations, future_work, summary, extra, bibtex, file_path
         FROM papers
         WHERE (:project_id IS NULL OR project_id = :project_id)
@@ -468,6 +564,16 @@ def rows_to_graph(
                 "authors": p["authors"],
                 "doi": p["doi"],
                 "url": p["url"],
+                "database": p["database"],
+                "revrieved_sought": p["revrieved_sought"],
+                "sought_not_revrieved": p["sought_not_revrieved"],
+                "evaluation": p["evaluation"],
+                "is_duplicated": p["is_duplicated"],
+                "duplicate_reason": p["duplicate_reason"],
+                "is_excluded": p["is_excluded"],
+                "excluded_reason": p["excluded_reason"],
+                "is_included": p["is_included"],
+                "included_reason": p["included_reason"],
                 "tags": tags,
                 "relevance": p["relevance"],
                 "dataset_used": p["dataset_used"],
@@ -639,6 +745,23 @@ def build_parser() -> argparse.ArgumentParser:
     add_p.add_argument("--venue", help="Venue or journal")
     add_p.add_argument("--doi", help="DOI identifier")
     add_p.add_argument("--url", help="URL to the paper")
+    add_p.add_argument(
+        "--database",
+        dest="database",
+        help="Source database (e.g., Scopus, Google Scholar)",
+    )
+    add_p.add_argument("--revrieved-sought", dest="revrieved_sought", help="Text for retrieved/sought details")
+    add_p.add_argument(
+        "--sought-not-revrieved",
+        dest="sought_not_revrieved",
+        help="Text for sought but not retrieved details",
+    )
+    add_p.add_argument("--is-duplicated", dest="is_duplicated", action="store_true", help="Mark as duplicate")
+    add_p.add_argument("--is-included", dest="is_included", action="store_true", help="Mark as included")
+    add_p.add_argument("--included-reason", dest="included_reason", help="Reason for inclusion decision")
+    add_p.add_argument("--duplicate-reason", dest="duplicate_reason", help="Reason for duplicate marking")
+    add_p.add_argument("--is-excluded", dest="is_excluded", action="store_true", help="Mark as excluded")
+    add_p.add_argument("--excluded-reason", dest="excluded_reason", help="Reason for exclusion")
     add_p.add_argument("--dataset-used", dest="dataset_used", help="Datasets used")
     add_p.add_argument("--methods", help="Methods or models used")
     add_p.add_argument("--metrics", help="Evaluation metrics")
@@ -653,6 +776,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_p.add_argument("--file-path", dest="file_path", help="Path to stored PDF")
     add_p.add_argument("--fulltext", help="Full extracted text content")
     add_p.add_argument("--summary", help="Short notes or summary")
+    add_p.add_argument("--evaluation", help="Evaluation notes or score")
     add_p.add_argument("--notes", help="Personal notes or comments")
     add_p.add_argument("--extra", help="JSON or text for additional fields")
     add_p.add_argument("--bibtex", help="BibTeX entry text")
@@ -679,6 +803,23 @@ def build_parser() -> argparse.ArgumentParser:
     import_p.add_argument("--venue", help="Venue or journal")
     import_p.add_argument("--doi", help="DOI identifier")
     import_p.add_argument("--url", help="URL to the paper")
+    import_p.add_argument(
+        "--database",
+        dest="database",
+        help="Source database (e.g., Scopus, Google Scholar)",
+    )
+    import_p.add_argument("--revrieved-sought", dest="revrieved_sought", help="Text for retrieved/sought details")
+    import_p.add_argument(
+        "--sought-not-revrieved",
+        dest="sought_not_revrieved",
+        help="Text for sought but not retrieved details",
+    )
+    import_p.add_argument("--is-duplicated", dest="is_duplicated", action="store_true", help="Mark as duplicate")
+    import_p.add_argument("--is-included", dest="is_included", action="store_true", help="Mark as included")
+    import_p.add_argument("--included-reason", dest="included_reason", help="Reason for inclusion decision")
+    import_p.add_argument("--duplicate-reason", dest="duplicate_reason", help="Reason for duplicate marking")
+    import_p.add_argument("--is-excluded", dest="is_excluded", action="store_true", help="Mark as excluded")
+    import_p.add_argument("--excluded-reason", dest="excluded_reason", help="Reason for exclusion")
     import_p.add_argument("--dataset-used", dest="dataset_used", help="Datasets used")
     import_p.add_argument("--methods", help="Methods or models used")
     import_p.add_argument("--metrics", help="Evaluation metrics")
@@ -691,6 +832,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Subjective relevance rating",
     )
     import_p.add_argument("--summary", help="Short notes or summary")
+    import_p.add_argument("--evaluation", help="Evaluation notes or score")
     import_p.add_argument("--notes", help="Personal notes or comments")
     import_p.add_argument("--extra", help="JSON or text for additional fields")
     import_p.add_argument("--bibtex", help="BibTeX entry text")
