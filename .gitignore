@@ -8,7 +8,7 @@ library/graph/*
 
 library/papers/*
 
-library/db/*
+library/db/papers.db
 
 # OS files
 .DS_Store
