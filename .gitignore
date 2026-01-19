@@ -1,0 +1,14 @@
+# Library directories - ignore all except demo files
+library/bibtex/*
+!library/bibtex/demo.bib
+
+library/graph/*
+!library/graph/demo.dot
+!library/graph/demo.json
+
+library/papers/*
+
+library/db/*
+
+# OS files
+.DS_Store
